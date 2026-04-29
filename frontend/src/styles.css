@@ -32,3 +32,29 @@ body { margin: 0; }
 .hint { background: #fff3cd; padding: 6px 10px; border-radius: 4px; font-size: 12px; }
 .fields-pane { overflow: auto; border-left: 1px solid #ddd; padding-left: 16px; }
 .placeholder { color: #888; }
+
+.popover {
+  position: absolute;
+  z-index: 50;
+  background: white;
+  border: 1px solid #888;
+  border-radius: 4px;
+  padding: 6px 8px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  font-size: 13px;
+}
+.popover-label { color: #666; }
+.popover-close { background: none; border: none; cursor: pointer; color: #888; }
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.modal {
+  background: white; padding: 24px; border-radius: 6px;
+  display: flex; flex-direction: column; gap: 12px; min-width: 320px;
+}
+.modal input { padding: 8px; font-size: 14px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }

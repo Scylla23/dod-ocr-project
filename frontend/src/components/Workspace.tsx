@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { PdfPane } from "./PdfPane";
+import { SelectionPopover } from "./SelectionPopover";
 
 interface PendingSelection {
   text: string;
@@ -9,17 +10,20 @@ interface PendingSelection {
 
 export function Workspace() {
   const [selection, setSelection] = useState<PendingSelection | null>(null);
+
   return (
     <div className="workspace">
       <PdfPane onSelectText={setSelection} />
       <div className="fields-pane">
-        <p className="placeholder">Fields panel — populated in Task 13.</p>
-        {selection && (
-          <p className="placeholder">
-            Selection captured: "{selection.text.slice(0, 40)}…" (popover in Task 13)
-          </p>
-        )}
+        <p className="placeholder">Fields panel — populated in Task 14.</p>
       </div>
+      {selection && (
+        <SelectionPopover
+          text={selection.text}
+          rect={selection.rect}
+          onClose={() => setSelection(null)}
+        />
+      )}
     </div>
   );
 }
