@@ -60,9 +60,10 @@ export function FieldsPane() {
 
   return (
     <div className="fields-pane">
+      <p className="fields-section-label">Extracted fields</p>
       <div className="fields-toolbar">
         <button onClick={handleReExtract} disabled={busy}>
-          {busy ? "Re-extracting…" : `Re-extract page ${currentPage}`}
+          {busy ? "Re-extracting…" : `↻ Re-extract page ${currentPage}`}
         </button>
       </div>
       {session.extraction_errors.length > 0 && (
@@ -100,15 +101,17 @@ function FieldRow({ field, value, original, onScalarChange, onRevert, onRemoveIt
   const dirty = !valuesEqual(value, original);
   const showRevert = original !== undefined && dirty;
   return (
-    <div className="field-row">
+    <div className="field-row" data-dirty={dirty}>
       <div className="field-header">
         <label className="field-name">{field.name}</label>
-        {showRevert && (
-          <button className="link" onClick={() => onRevert(field.name)}>revert</button>
-        )}
-        {field.removable && (
-          <button className="link danger" onClick={() => onDelete(field)}>delete</button>
-        )}
+        <span className="field-actions">
+          {showRevert && (
+            <button className="link" onClick={() => onRevert(field.name)}>revert</button>
+          )}
+          {field.removable && (
+            <button className="link danger" onClick={() => onDelete(field)}>delete</button>
+          )}
+        </span>
       </div>
       {field.type === "string" ? (
         <input

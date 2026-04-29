@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { api } from "../api";
 import { useApp } from "../store";
+import type { FieldDef } from "../types";
 import { AddFieldModal } from "./AddFieldModal";
 
 interface Props {
@@ -10,8 +11,6 @@ interface Props {
   onClose: () => void;
 }
 
-const NEW_FIELD_VALUE = "__new__";
-
 export function SelectionPopover({ text, rect, onClose }: Props) {
   const session = useApp((s) => s.session)!;
   const setFieldValue = useApp((s) => s.setFieldValue);
@@ -19,33 +18,31 @@ export function SelectionPopover({ text, rect, onClose }: Props) {
   const addField = useApp((s) => s.addField);
   const [showModal, setShowModal] = useState(false);
 
-  async function assign(fieldName: string) {
-    const def = session.schema.find((f) => f.name === fieldName);
-    if (!def) return;
+  async function assign(def: FieldDef) {
     if (def.type === "string") {
-      await api.patchValues(session.session_id, { op: "set", field: fieldName, value: text });
-      setFieldValue(fieldName, text);
+      await api.patchValues(session.session_id, { op: "set", field: def.name, value: text });
+      setFieldValue(def.name, text);
     } else {
-      await api.patchValues(session.session_id, { op: "append", field: fieldName, value: text });
-      appendFieldValue(fieldName, text);
+      await api.patchValues(session.session_id, { op: "append", field: def.name, value: text });
+      appendFieldValue(def.name, text);
     }
     onClose();
   }
 
   async function handleSelect(value: string) {
-    if (value === NEW_FIELD_VALUE) {
-      setShowModal(true);
-      return;
-    }
-    await assign(value);
+    if (!value) return;
+    const def = session.schema.find((f) => f.name === value);
+    if (!def) return;
+    await assign(def);
   }
 
   async function handleCreate(name: string) {
     const { schema } = await api.addField(session.session_id, name);
     const newField = schema.find((f) => f.name === name);
-    if (newField) addField(newField);
+    if (!newField) return;
+    addField(newField);
     setShowModal(false);
-    await assign(name);
+    await assign(newField);
   }
 
   const top = rect.bottom + window.scrollY + 4;
@@ -57,20 +54,31 @@ export function SelectionPopover({ text, rect, onClose }: Props) {
         className="popover"
         style={{ top, left }}
         onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.preventDefault()} // don't clear selection
       >
-        <span className="popover-label">Assign to…</span>
+        <span
+          className="popover-label"
+          onMouseDown={(e) => e.preventDefault()} // label click shouldn't blur selection
+        >
+          Assign →
+        </span>
         <select defaultValue="" onChange={(e) => handleSelect(e.target.value)}>
           <option value="" disabled>
-            choose field
+            {session.schema.length ? "choose field" : "no fields yet"}
           </option>
           {session.schema.map((f) => (
             <option key={f.name} value={f.name}>
               {f.name}
             </option>
           ))}
-          <option value={NEW_FIELD_VALUE}>+ Create new field…</option>
         </select>
+        <button
+          type="button"
+          className="popover-new"
+          onClick={() => setShowModal(true)}
+          title="Create a new field with this text"
+        >
+          + new field
+        </button>
         <button className="popover-close" onClick={onClose}>✕</button>
       </div>
       {showModal && <AddFieldModal onConfirm={handleCreate} onCancel={() => setShowModal(false)} />}

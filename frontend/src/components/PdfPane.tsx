@@ -53,17 +53,23 @@ export function PdfPane({ onSelectText }: Props) {
   return (
     <div className="pdf-pane">
       <div className="pager">
-        <button disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>
-          ◀
-        </button>
-        <span>
-          Page {currentPage} / {session.page_count}
-        </span>
         <button
+          aria-label="previous page"
+          disabled={currentPage <= 1}
+          onClick={() => setPage(currentPage - 1)}
+        >
+          ←
+        </button>
+        <span className="pager-count">
+          Folio <span className="pager-folio">{currentPage}</span> / {session.page_count}
+        </span>
+        <span className="pager-divider" aria-hidden />
+        <button
+          aria-label="next page"
           disabled={currentPage >= session.page_count}
           onClick={() => setPage(currentPage + 1)}
         >
-          ▶
+          →
         </button>
       </div>
       {textLengthHint !== null && textLengthHint < 20 && (

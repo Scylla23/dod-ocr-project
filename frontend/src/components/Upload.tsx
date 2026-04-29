@@ -23,23 +23,68 @@ export function Upload() {
     }
   }
 
+  const today = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  }).toUpperCase();
+
   return (
     <div className="upload">
-      <h1>PDF Extract</h1>
-      <p>Upload a PDF to extract structured data.</p>
-      <div className="upload-controls">
-        <ProviderSelect disabled={busy} />
-      </div>
-      <label className="upload-drop">
-        <input
-          type="file"
-          accept="application/pdf"
-          disabled={busy}
-          onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-        />
-        {busy ? "Extracting…" : "Choose PDF"}
-      </label>
-      {error && <p className="error">Error: {error}</p>}
+      <header className="upload-masthead">
+        <div className="masthead-mark">
+          <span className="dot" aria-hidden />
+          <span>Extract / Vol. 01</span>
+          <span>—</span>
+          <span>An atelier for structured PDF data</span>
+        </div>
+        <div className="masthead-meta">
+          <div>{today}</div>
+          <div>FOLIO Nº 0001</div>
+        </div>
+      </header>
+
+      <section className="upload-stage">
+        <div className="upload-lede">
+          <p className="kicker">A document, decomposed</p>
+          <h1>
+            Lift the<br /> facts <em>from</em><br /> the page.
+          </h1>
+          <p className="lead">
+            Drop a PDF and we&rsquo;ll read it like a careful editor —
+            highlighting the fields that matter, then handing them back
+            to you in a form built for review, refinement, and export.
+          </p>
+          <ol className="upload-rules">
+            <li>Choose a model, or trust the house default.</li>
+            <li>Upload a PDF — text-native or scanned.</li>
+            <li>Edit, append, and curate the extraction.</li>
+          </ol>
+        </div>
+
+        <div className="upload-panel">
+          <div className="upload-controls">
+            <ProviderSelect disabled={busy} />
+          </div>
+          <label className="upload-drop" data-busy={busy}>
+            <input
+              type="file"
+              accept="application/pdf"
+              disabled={busy}
+              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+            />
+            <span className="glyph" aria-hidden>{busy ? "⟳" : "¶"}</span>
+            <span className="label">{busy ? "Reading the document" : "Choose a PDF"}</span>
+            <span className="sub">{busy ? "do not close this window" : "or drop one here"}</span>
+          </label>
+          {error && <p className="error">{error}</p>}
+        </div>
+      </section>
+
+      <footer className="upload-footer">
+        <span>PDF · structured extraction</span>
+        <span>set in instrument serif × jetbrains mono</span>
+      </footer>
     </div>
   );
 }

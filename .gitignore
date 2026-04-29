@@ -21,6 +21,7 @@ dist/
 
 # Brainstorming companion
 .superpowers/
+docs/superpowers/
 
 # Env
 .env

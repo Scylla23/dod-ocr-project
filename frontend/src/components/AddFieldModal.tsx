@@ -40,17 +40,17 @@ export function AddFieldModal({ onConfirm, onCancel }: Props) {
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
-        <h3>Create field</h3>
+        <h3>Name your field</h3>
         <input
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="field name"
+          placeholder="e.g. invoice_number"
         />
         {error && <p className="error">{error}</p>}
         <div className="modal-actions">
           <button type="button" onClick={onCancel} disabled={busy}>Cancel</button>
-          <button type="submit" disabled={busy}>{busy ? "Adding…" : "Add"}</button>
+          <button type="submit" disabled={busy}>{busy ? "Adding…" : "Add field"}</button>
         </div>
       </form>
     </div>

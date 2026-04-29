@@ -18,11 +18,13 @@ export function Workspace() {
   return (
     <div className="workspace">
       <header className="workspace-header">
-        <span className="workspace-title">PDF Extract</span>
-        <span className="workspace-provider">
-          Model: <strong>{selectedProvider ?? "default"}</strong>
+        <span className="workspace-title">Extract</span>
+        <span className="workspace-meta">
+          <span className="workspace-provider">
+            Model<strong>{selectedProvider ?? "default"}</strong>
+          </span>
+          <button className="link" onClick={reset}>New document</button>
         </span>
-        <button className="link" onClick={reset}>Upload another PDF</button>
       </header>
       <div className="workspace-body">
         <PdfPane onSelectText={setSelection} />
