@@ -22,3 +22,8 @@ export type PatchOp =
   | { op: "append"; field: string; value: string }
   | { op: "remove"; field: string; index: number }
   | { op: "revert"; field: string };
+
+export interface ProvidersResponse {
+  providers: string[];
+  default: string;
+}

@@ -5,10 +5,12 @@ import type { FieldDef, FieldValue, SessionData } from "./types";
 interface AppState {
   session: SessionData | null;
   currentPage: number;
+  selectedProvider: string | null;
 
   setSession: (s: SessionData) => void;
   reset: () => void;
   setPage: (p: number) => void;
+  setSelectedProvider: (provider: string | null) => void;
 
   setFieldValue: (field: string, value: FieldValue) => void;
   appendFieldValue: (field: string, value: string) => void;
@@ -22,12 +24,36 @@ interface AppState {
 
 const isList = (v: FieldValue | undefined): v is string[] => Array.isArray(v);
 
+const PROVIDER_KEY = "pdf-extract.selectedProvider";
+
+function loadProvider(): string | null {
+  try {
+    return localStorage.getItem(PROVIDER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveProvider(p: string | null): void {
+  try {
+    if (p === null) localStorage.removeItem(PROVIDER_KEY);
+    else localStorage.setItem(PROVIDER_KEY, p);
+  } catch {
+    // localStorage unavailable (e.g., privacy mode); silently ignore
+  }
+}
+
 export const useApp = create<AppState>((set, get) => ({
   session: null,
   currentPage: 1,
+  selectedProvider: loadProvider(),
 
   setSession: (s) => set({ session: s, currentPage: 1 }),
   reset: () => set({ session: null, currentPage: 1 }),
+  setSelectedProvider: (p) => {
+    saveProvider(p);
+    set({ selectedProvider: p });
+  },
   setPage: (p) => set({ currentPage: p }),
 
   setFieldValue: (field, value) => {

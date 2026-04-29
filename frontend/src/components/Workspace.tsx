@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { useApp } from "../store";
 import { FieldsPane } from "./FieldsPane";
 import { PdfPane } from "./PdfPane";
 import { SelectionPopover } from "./SelectionPopover";
@@ -11,11 +12,22 @@ interface PendingSelection {
 
 export function Workspace() {
   const [selection, setSelection] = useState<PendingSelection | null>(null);
+  const selectedProvider = useApp((s) => s.selectedProvider);
+  const reset = useApp((s) => s.reset);
 
   return (
     <div className="workspace">
-      <PdfPane onSelectText={setSelection} />
-      <FieldsPane />
+      <header className="workspace-header">
+        <span className="workspace-title">PDF Extract</span>
+        <span className="workspace-provider">
+          Model: <strong>{selectedProvider ?? "default"}</strong>
+        </span>
+        <button className="link" onClick={reset}>Upload another PDF</button>
+      </header>
+      <div className="workspace-body">
+        <PdfPane onSelectText={setSelection} />
+        <FieldsPane />
+      </div>
       {selection && (
         <SelectionPopover
           text={selection.text}

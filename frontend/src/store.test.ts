@@ -58,4 +58,11 @@ describe("store", () => {
     useApp.getState().revertField("keywords");
     expect(useApp.getState().session?.values.keywords).toBe("");
   });
+
+  it("setSelectedProvider updates state", () => {
+    useApp.getState().setSelectedProvider("openai");
+    expect(useApp.getState().selectedProvider).toBe("openai");
+    useApp.getState().setSelectedProvider(null);
+    expect(useApp.getState().selectedProvider).toBeNull();
+  });
 });

@@ -76,3 +76,27 @@ body { margin: 0; }
 }
 .chip button { background: none; border: none; cursor: pointer; color: #666; }
 .banner { background: #fee; padding: 8px; border-radius: 4px; margin-bottom: 12px; font-size: 13px; }
+
+.upload-controls { margin: 16px 0; display: flex; justify-content: center; }
+.provider-select { font-size: 14px; color: #444; }
+.provider-select select {
+  margin-left: 6px;
+  padding: 4px 8px;
+  font-size: 14px;
+}
+.provider-select.error { color: #c00; }
+.workspace { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+.workspace-header {
+  display: flex; gap: 16px; align-items: center;
+  padding: 8px 16px; border-bottom: 1px solid #ddd;
+  font-size: 13px;
+}
+.workspace-title { font-weight: 600; font-size: 15px; }
+.workspace-provider { color: #555; }
+.workspace-body {
+  display: grid; grid-template-columns: minmax(720px, 1fr) 420px;
+  gap: 16px; padding: 16px;
+  overflow: hidden;
+}
+.workspace-body .pdf-pane,
+.workspace-body .fields-pane { height: 100%; }

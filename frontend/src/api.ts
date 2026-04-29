@@ -1,4 +1,4 @@
-import type { FieldDef, PatchOp, SessionData } from "./types";
+import type { FieldDef, PatchOp, ProvidersResponse, SessionData } from "./types";
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -9,9 +9,12 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
 }
 
 export const api = {
-  upload: async (file: File): Promise<SessionData> => {
+  getProviders: async (): Promise<ProvidersResponse> =>
+    jsonOrThrow(await fetch("/providers")),
+  upload: async (file: File, provider?: string): Promise<SessionData> => {
     const fd = new FormData();
     fd.append("file", file);
+    if (provider) fd.append("provider", provider);
     return jsonOrThrow(await fetch("/upload", { method: "POST", body: fd }));
   },
   pdfUrl: (sid: string) => `/sessions/${sid}/pdf`,
@@ -37,12 +40,16 @@ export const api = {
         method: "DELETE",
       }),
     ),
-  extractPage: async (sid: string, page: number): Promise<{ values: Record<string, unknown> }> =>
+  extractPage: async (
+    sid: string,
+    page: number,
+    provider?: string,
+  ): Promise<{ values: Record<string, unknown> }> =>
     jsonOrThrow(
       await fetch(`/sessions/${sid}/extract-page`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ page }),
+        body: JSON.stringify(provider ? { page, provider } : { page }),
       }),
     ),
   pageTextLength: async (sid: string, page: number): Promise<{ length: number }> =>

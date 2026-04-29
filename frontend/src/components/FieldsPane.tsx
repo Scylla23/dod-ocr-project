@@ -45,7 +45,11 @@ export function FieldsPane() {
   async function handleReExtract() {
     setBusy(true);
     try {
-      const { values } = await api.extractPage(session.session_id, currentPage);
+      const { values } = await api.extractPage(
+        session.session_id,
+        currentPage,
+        useApp.getState().selectedProvider ?? undefined,
+      );
       applyMergedValues(values as Record<string, string | string[]>);
     } catch (e) {
       alert(`Re-extract failed: ${e instanceof Error ? e.message : e}`);
