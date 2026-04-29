@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-import io
-
 import fitz  # PyMuPDF
 
 
 class PdfOpenError(ValueError):
+    pass
+
+
+class PageIndexError(ValueError):
     pass
 
 
@@ -27,6 +29,10 @@ def page_count(pdf_bytes: bytes) -> int:
 def text_length(pdf_bytes: bytes, page_index: int) -> int:
     doc = _open(pdf_bytes)
     try:
+        if page_index < 0 or page_index >= doc.page_count:
+            raise PageIndexError(
+                f"page_index {page_index} out of range (0..{doc.page_count - 1})"
+            )
         return len(doc[page_index].get_text().strip())
     finally:
         doc.close()
@@ -36,6 +42,10 @@ def render_page_png(pdf_bytes: bytes, page_index: int, *, dpi: int = 150, max_ed
     """Render a page to PNG bytes, downscaled so the longest edge <= max_edge."""
     doc = _open(pdf_bytes)
     try:
+        if page_index < 0 or page_index >= doc.page_count:
+            raise PageIndexError(
+                f"page_index {page_index} out of range (0..{doc.page_count - 1})"
+            )
         page = doc[page_index]
         zoom = dpi / 72.0
         rect = page.rect

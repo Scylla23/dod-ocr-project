@@ -1,8 +1,11 @@
+import io
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 from app.pdf_renderer import (
+    PageIndexError,
     PdfOpenError,
     page_count,
     render_page_png,
@@ -27,9 +30,6 @@ def test_render_page_returns_png_bytes(pdf_bytes):
 
 
 def test_render_page_respects_max_edge(pdf_bytes):
-    from PIL import Image
-    import io
-
     png = render_page_png(pdf_bytes, 0, max_edge=1024)
     img = Image.open(io.BytesIO(png))
     assert max(img.size) <= 1024
@@ -42,3 +42,18 @@ def test_text_length_nonzero(pdf_bytes):
 def test_invalid_pdf_raises():
     with pytest.raises(PdfOpenError):
         render_page_png(b"not a pdf", 0)
+
+
+def test_render_page_negative_index_raises(pdf_bytes):
+    with pytest.raises(PageIndexError):
+        render_page_png(pdf_bytes, -1)
+
+
+def test_render_page_out_of_range_raises(pdf_bytes):
+    with pytest.raises(PageIndexError):
+        render_page_png(pdf_bytes, 99)
+
+
+def test_text_length_out_of_range_raises(pdf_bytes):
+    with pytest.raises(PageIndexError):
+        text_length(pdf_bytes, 99)
