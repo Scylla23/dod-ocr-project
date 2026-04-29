@@ -959,3 +959,66 @@ input, select, textarea { font-family: inherit; }
   .pdf-pane { padding: 16px; }
   .fields-pane { padding: 20px 16px 32px; }
 }
+
+/* ============================================================
+   Demo route — splash + banner
+============================================================ */
+
+.demo-splash {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: var(--paper);
+}
+.demo-splash-card {
+  max-width: 460px;
+  text-align: center;
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+  padding: 48px 36px;
+  box-shadow: var(--shadow-paper);
+}
+.demo-splash-card h1 {
+  font-family: var(--serif-display);
+  font-size: 36px;
+  margin: 16px 0 12px;
+  color: var(--ink);
+}
+.demo-splash-card p { color: var(--muted); font-size: 15px; }
+.demo-splash-glyph {
+  display: inline-block;
+  font-family: var(--serif-display);
+  font-size: 56px;
+  color: var(--accent);
+  animation: demo-pulse 1.6s ease-in-out infinite;
+}
+@keyframes demo-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+.demo-shell { display: flex; flex-direction: column; min-height: 100vh; }
+.demo-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px;
+  background: var(--accent-wash);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.demo-banner-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background: var(--accent);
+  color: var(--paper);
+  padding: 2px 8px;
+  border-radius: var(--rad-sm);
+}
+.demo-banner-text { flex: 1; }
+.demo-banner-text em { font-family: var(--serif-display); font-style: italic; color: var(--ink); }

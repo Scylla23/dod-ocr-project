@@ -44,6 +44,15 @@ def get_providers():
     return {"providers": list_providers(), "default": DEFAULT_PROVIDER_NAME}
 
 
+@router.post("/demo/session")
+def create_demo():
+    """Return a fresh, pre-extracted demo session loaded from bundled JSON."""
+    from app.demo import create_demo_session  # local import to avoid cycle at start
+
+    sid, state = create_demo_session()
+    return _serialize_session(sid, state)
+
+
 def _serialize_session(sid: str, state: SessionState) -> dict[str, Any]:
     return {
         "session_id": sid,

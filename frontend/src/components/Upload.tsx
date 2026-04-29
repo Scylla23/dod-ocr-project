@@ -83,7 +83,18 @@ export function Upload() {
 
       <footer className="upload-footer">
         <span>PDF · structured extraction</span>
-        <span>set in instrument serif × jetbrains mono</span>
+        <span>
+          <a
+            href="/demo"
+            onClick={(e) => {
+              e.preventDefault();
+              window.history.pushState({}, "", "/demo");
+              window.dispatchEvent(new PopStateEvent("popstate"));
+            }}
+          >
+            View pre-extracted demo →
+          </a>
+        </span>
       </footer>
     </div>
   );

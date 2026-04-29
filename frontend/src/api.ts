@@ -18,6 +18,8 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
 export const api = {
   getProviders: async (): Promise<ProvidersResponse> =>
     jsonOrThrow(await fetch("/providers")),
+  loadDemo: async (): Promise<SessionData> =>
+    jsonOrThrow(await fetch("/demo/session", { method: "POST" })),
   upload: async (file: File, provider?: string): Promise<SessionData> => {
     const fd = new FormData();
     fd.append("file", file);
