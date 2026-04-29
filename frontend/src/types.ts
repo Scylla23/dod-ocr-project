@@ -8,6 +8,12 @@ export interface FieldDef {
 
 export type FieldValue = string | string[];
 
+export interface Citation {
+  page: number; // 1-indexed
+  rects: number[][]; // [[x, y, w, h]] in normalized [0,1] page-fraction coords
+  quote: string;
+}
+
 export interface SessionData {
   session_id: string;
   page_count: number;
@@ -15,6 +21,7 @@ export interface SessionData {
   values: Record<string, FieldValue>;
   original_extracted: Record<string, FieldValue>;
   extraction_errors: number[];
+  citations: Record<string, Citation>;
 }
 
 export type PatchOp =

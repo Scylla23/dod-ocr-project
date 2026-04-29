@@ -61,10 +61,23 @@ def remove_field(schema: list[FieldDef], name: str) -> list[FieldDef]:
     return [f for f in schema if f.name.lower() != name.lower()]
 
 
-def build_tool_input_schema(schema: list[FieldDef]) -> dict:
+EVIDENCE_KEY = "_evidence"
+
+EVIDENCE_PROMPT = (
+    " Also fill the '_evidence' object: for each field above, supply a short "
+    "verbatim quote (≤120 chars) copied EXACTLY from the page's printed text "
+    "that supports the value, or null if the value was not present or had to "
+    "be inferred. Do not paraphrase. Do not include surrounding punctuation "
+    "that does not appear on the page. For list fields, quote one representative item."
+)
+
+
+def build_tool_input_schema(schema: list[FieldDef], *, include_evidence: bool = False) -> dict:
     """Build a JSON schema for Anthropic tool-use that mirrors the field schema.
 
     All fields are required and nullable so the model must produce a complete object.
+    When include_evidence=True, an additional '_evidence' object is required, with
+    one nullable string per field for verbatim source quotes.
     """
     properties: dict[str, dict] = {}
     for f in schema:
@@ -75,8 +88,29 @@ def build_tool_input_schema(schema: list[FieldDef]) -> dict:
                 "type": ["array", "null"],
                 "items": {"type": "string"},
             }
+    required = [f.name for f in schema]
+    if include_evidence:
+        properties[EVIDENCE_KEY] = _build_evidence_subschema(schema, strict=False)
+        required.append(EVIDENCE_KEY)
     return {
         "type": "object",
         "properties": properties,
+        "required": required,
+    }
+
+
+def _build_evidence_subschema(schema: list[FieldDef], *, strict: bool) -> dict:
+    """Sub-schema for per-field verbatim quotes. strict=True for OpenAI structured outputs."""
+    props: dict[str, dict] = {f.name: {"type": ["string", "null"]} for f in schema}
+    sub: dict = {
+        "type": "object",
+        "properties": props,
         "required": [f.name for f in schema],
     }
+    if strict:
+        sub["additionalProperties"] = False
+    return sub
+
+
+def build_evidence_subschema(schema: list[FieldDef], *, strict: bool = False) -> dict:
+    return _build_evidence_subschema(schema, strict=strict)

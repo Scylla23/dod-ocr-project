@@ -9,7 +9,12 @@ from typing import Any
 
 from openai import AsyncOpenAI
 
-from app.schema import FieldDef
+from app.schema import (
+    EVIDENCE_KEY,
+    EVIDENCE_PROMPT,
+    FieldDef,
+    build_evidence_subschema,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +23,7 @@ _DEFAULT_BASE_URL = "https://api.openai.com/v1"
 _TIMEOUT_S = 60.0
 
 
-def _build_openai_schema(schema: list[FieldDef]) -> dict[str, Any]:
+def _build_openai_schema(schema: list[FieldDef], *, include_evidence: bool = False) -> dict[str, Any]:
     """Build an OpenAI strict-mode JSON schema mirroring the field schema."""
     properties: dict[str, dict] = {}
     for f in schema:
@@ -29,10 +34,14 @@ def _build_openai_schema(schema: list[FieldDef]) -> dict[str, Any]:
                 "type": ["array", "null"],
                 "items": {"type": "string"},
             }
+    required = [f.name for f in schema]
+    if include_evidence:
+        properties[EVIDENCE_KEY] = build_evidence_subschema(schema, strict=True)
+        required.append(EVIDENCE_KEY)
     return {
         "type": "object",
         "properties": properties,
-        "required": [f.name for f in schema],
+        "required": required,
         "additionalProperties": False,
     }
 
@@ -54,7 +63,7 @@ class OpenAIProvider:
     async def extract(self, image_png: bytes, schema: list[FieldDef]) -> dict | None:
         client = self._get_client()
         image_b64 = base64.standard_b64encode(image_png).decode("ascii")
-        json_schema = _build_openai_schema(schema)
+        json_schema = _build_openai_schema(schema, include_evidence=True)
         try:
             response = await asyncio.wait_for(
                 client.chat.completions.create(
@@ -82,6 +91,7 @@ class OpenAIProvider:
                                         "Extract the listed fields from this PDF page. "
                                         "Return null for any field not present on this page; "
                                         "do not invent or infer values that are not present."
+                                        + EVIDENCE_PROMPT
                                     ),
                                 },
                             ],

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { api } from "../api";
+import { api, streamExtractPage } from "../api";
 import { useApp } from "../store";
-import type { FieldDef } from "../types";
+import type { Citation, FieldDef, FieldValue } from "../types";
 
 function valuesEqual(a: unknown, b: unknown): boolean {
   if (Array.isArray(a) && Array.isArray(b)) {
@@ -18,7 +18,13 @@ export function FieldsPane() {
   const removeFieldValue = useApp((s) => s.removeFieldValue);
   const revertField = useApp((s) => s.revertField);
   const deleteFieldStore = useApp((s) => s.deleteField);
-  const applyMergedValues = useApp((s) => s.applyMergedValues);
+  const applyCitations = useApp((s) => s.applyCitations);
+  const setHighlightedField = useApp((s) => s.setHighlightedField);
+  const highlightedField = useApp((s) => s.highlightedField);
+  const liveFields = useApp((s) => s.liveFields);
+  const markLive = useApp((s) => s.markLive);
+  const clearLive = useApp((s) => s.clearLive);
+  const setPage = useApp((s) => s.setPage);
   const [busy, setBusy] = useState(false);
 
   async function handleRevert(field: string) {
@@ -42,29 +48,72 @@ export function FieldsPane() {
     deleteFieldStore(field.name);
   }
 
-  async function handleReExtract() {
+  function handleReExtract() {
+    if (busy) return;
     setBusy(true);
-    try {
-      const { values } = await api.extractPage(
-        session.session_id,
-        currentPage,
-        useApp.getState().selectedProvider ?? undefined,
-      );
-      applyMergedValues(values as Record<string, string | string[]>);
-    } catch (e) {
-      alert(`Re-extract failed: ${e instanceof Error ? e.message : e}`);
-    } finally {
-      setBusy(false);
-    }
+    const provider = useApp.getState().selectedProvider ?? undefined;
+    streamExtractPage(session.session_id, currentPage, provider, {
+      onField: (name, value) => {
+        // Only fill empty scalars; for lists, replace with the streamed list.
+        const cur = useApp.getState().session;
+        if (!cur) return;
+        const def = cur.schema.find((f) => f.name === name);
+        if (!def) return;
+        if (def.type === "string") {
+          if (typeof value === "string" && value.trim() && !cur.values[name]) {
+            setFieldValue(name, value);
+            markLive(name);
+            window.setTimeout(() => clearLive(name), 1400);
+          }
+        } else if (Array.isArray(value)) {
+          // Merge dedupe-preserving: append new items only.
+          const existing = Array.isArray(cur.values[name]) ? (cur.values[name] as string[]) : [];
+          const seen = new Set(existing);
+          const merged = [...existing];
+          for (const item of value) {
+            if (typeof item === "string" && !seen.has(item)) {
+              seen.add(item);
+              merged.push(item);
+            }
+          }
+          if (merged.length > existing.length) {
+            setFieldValue(name, merged);
+            markLive(name);
+            window.setTimeout(() => clearLive(name), 1400);
+          }
+        }
+      },
+      onCitations: (cits) => applyCitations(cits),
+      onDone: () => setBusy(false),
+      onError: (msg) => {
+        alert(`Re-extract failed: ${msg}`);
+        setBusy(false);
+      },
+    });
   }
+
+  function handleCitationClick(field: string) {
+    const cit: Citation | undefined = session.citations?.[field];
+    if (!cit) return;
+    setPage(cit.page);
+    setHighlightedField(field);
+  }
+
+  // Auto-clear highlight after a while
+  useEffect(() => {
+    if (!highlightedField) return;
+    const t = window.setTimeout(() => setHighlightedField(null), 3500);
+    return () => window.clearTimeout(t);
+  }, [highlightedField, setHighlightedField]);
 
   return (
     <div className="fields-pane">
       <p className="fields-section-label">Extracted fields</p>
       <div className="fields-toolbar">
         <button onClick={handleReExtract} disabled={busy}>
-          {busy ? "Re-extracting…" : `↻ Re-extract page ${currentPage}`}
+          {busy ? "Streaming…" : `↻ Re-extract page ${currentPage}`}
         </button>
+        {busy && <span className="stream-indicator" aria-hidden />}
       </div>
       {session.extraction_errors.length > 0 && (
         <div className="banner">
@@ -77,10 +126,14 @@ export function FieldsPane() {
           field={f}
           value={session.values[f.name] ?? (f.type === "list[string]" ? [] : "")}
           original={session.original_extracted[f.name]}
+          citation={session.citations?.[f.name]}
+          live={liveFields.has(f.name)}
+          highlighted={highlightedField === f.name}
           onScalarChange={handleScalarChange}
           onRevert={handleRevert}
           onRemoveItem={handleRemoveListItem}
           onDelete={handleDeleteField}
+          onCitation={handleCitationClick}
         />
       ))}
     </div>
@@ -89,22 +142,52 @@ export function FieldsPane() {
 
 interface RowProps {
   field: FieldDef;
-  value: string | string[];
-  original: string | string[] | undefined;
+  value: FieldValue;
+  original: FieldValue | undefined;
+  citation?: Citation;
+  live: boolean;
+  highlighted: boolean;
   onScalarChange: (field: string, value: string) => Promise<void>;
   onRevert: (field: string) => Promise<void>;
   onRemoveItem: (field: string, index: number) => Promise<void>;
   onDelete: (field: FieldDef) => Promise<void>;
+  onCitation: (field: string) => void;
 }
 
-function FieldRow({ field, value, original, onScalarChange, onRevert, onRemoveItem, onDelete }: RowProps) {
+function FieldRow({
+  field,
+  value,
+  original,
+  citation,
+  live,
+  highlighted,
+  onScalarChange,
+  onRevert,
+  onRemoveItem,
+  onDelete,
+  onCitation,
+}: RowProps) {
   const dirty = !valuesEqual(value, original);
   const showRevert = original !== undefined && dirty;
   return (
-    <div className="field-row" data-dirty={dirty}>
+    <div
+      className="field-row"
+      data-dirty={dirty}
+      data-live={live}
+      data-highlighted={highlighted}
+    >
       <div className="field-header">
         <label className="field-name">{field.name}</label>
         <span className="field-actions">
+          {citation && (
+            <button
+              className="link source"
+              onClick={() => onCitation(field.name)}
+              title={`Source: page ${citation.page} — "${citation.quote}"`}
+            >
+              ¶ p.{citation.page}
+            </button>
+          )}
           {showRevert && (
             <button className="link" onClick={() => onRevert(field.name)}>revert</button>
           )}

@@ -18,6 +18,8 @@ class SessionState:
     extraction_errors: list[int] = field(default_factory=list)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     provider_name: str | None = None
+    # field_name -> {"page": int (1-indexed), "rects": [[x,y,w,h] in [0,1]], "quote": str}
+    citations: dict[str, dict] = field(default_factory=dict)
 
 
 class SessionStore:

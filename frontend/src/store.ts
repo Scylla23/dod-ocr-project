@@ -1,11 +1,13 @@
 import { create } from "zustand";
 
-import type { FieldDef, FieldValue, SessionData } from "./types";
+import type { Citation, FieldDef, FieldValue, SessionData } from "./types";
 
 interface AppState {
   session: SessionData | null;
   currentPage: number;
   selectedProvider: string | null;
+  highlightedField: string | null;
+  liveFields: Set<string>; // fields that just streamed in (for flash animation)
 
   setSession: (s: SessionData) => void;
   reset: () => void;
@@ -20,6 +22,10 @@ interface AppState {
   deleteField: (name: string) => void;
   setSchema: (schema: FieldDef[]) => void;
   applyMergedValues: (values: Record<string, FieldValue>) => void;
+  applyCitations: (citations: Record<string, Citation>) => void;
+  setHighlightedField: (field: string | null) => void;
+  markLive: (field: string) => void;
+  clearLive: (field: string) => void;
 }
 
 const isList = (v: FieldValue | undefined): v is string[] => Array.isArray(v);
@@ -47,9 +53,11 @@ export const useApp = create<AppState>((set, get) => ({
   session: null,
   currentPage: 1,
   selectedProvider: loadProvider(),
+  highlightedField: null,
+  liveFields: new Set<string>(),
 
-  setSession: (s) => set({ session: s, currentPage: 1 }),
-  reset: () => set({ session: null, currentPage: 1 }),
+  setSession: (s) => set({ session: s, currentPage: 1, highlightedField: null }),
+  reset: () => set({ session: null, currentPage: 1, highlightedField: null }),
   setSelectedProvider: (p) => {
     saveProvider(p);
     set({ selectedProvider: p });
@@ -135,5 +143,32 @@ export const useApp = create<AppState>((set, get) => ({
       merged[k] = v as FieldValue;
     }
     set({ session: { ...s, values: merged } });
+  },
+
+  applyCitations: (citations) => {
+    const s = get().session;
+    if (!s) return;
+    set({
+      session: {
+        ...s,
+        citations: { ...(s.citations ?? {}), ...citations },
+      },
+    });
+  },
+
+  setHighlightedField: (field) => set({ highlightedField: field }),
+
+  markLive: (field) => {
+    const next = new Set(get().liveFields);
+    next.add(field);
+    set({ liveFields: next });
+  },
+
+  clearLive: (field) => {
+    const cur = get().liveFields;
+    if (!cur.has(field)) return;
+    const next = new Set(cur);
+    next.delete(field);
+    set({ liveFields: next });
   },
 }));

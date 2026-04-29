@@ -13,12 +13,17 @@ interface Props {
   onSelectText: (payload: SelectionPayload | null) => void;
 }
 
+const PAGE_WIDTH = 700;
+
 export function PdfPane({ onSelectText }: Props) {
   const session = useApp((s) => s.session)!;
   const currentPage = useApp((s) => s.currentPage);
   const setPage = useApp((s) => s.setPage);
+  const highlightedField = useApp((s) => s.highlightedField);
   const containerRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
   const [textLengthHint, setTextLengthHint] = useState<number | null>(null);
+  const [pageDims, setPageDims] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,6 +55,20 @@ export function PdfPane({ onSelectText }: Props) {
     onSelectText({ text, rect: range.getBoundingClientRect() });
   }
 
+  // Scroll the highlight into view when it changes pages or fires.
+  useEffect(() => {
+    if (!highlightedField) return;
+    const cit = session.citations?.[highlightedField];
+    if (!cit || cit.page !== currentPage) return;
+    const el = pageRef.current?.querySelector<HTMLElement>(".highlight-rect");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightedField, session.citations, currentPage]);
+
+  const activeCitation =
+    highlightedField && session.citations?.[highlightedField]?.page === currentPage
+      ? session.citations[highlightedField]
+      : null;
+
   return (
     <div className="pdf-pane">
       <div className="pager">
@@ -76,9 +95,36 @@ export function PdfPane({ onSelectText }: Props) {
         <div className="hint">This page has little or no selectable text.</div>
       )}
       <div className="pdf-canvas" ref={containerRef} onMouseUp={handleMouseUp}>
-        <Document file={api.pdfUrl(session.session_id)}>
-          <Page pageNumber={currentPage} width={700} renderAnnotationLayer={false} />
-        </Document>
+        <div className="pdf-page-wrap" ref={pageRef}>
+          <Document file={api.pdfUrl(session.session_id)}>
+            <Page
+              pageNumber={currentPage}
+              width={PAGE_WIDTH}
+              renderAnnotationLayer={false}
+              onRenderSuccess={({ width, height }) => setPageDims({ width, height })}
+            />
+          </Document>
+          {activeCitation && pageDims && (
+            <div
+              className="highlight-overlay"
+              style={{ width: pageDims.width, height: pageDims.height }}
+              aria-hidden
+            >
+              {activeCitation.rects.map(([x, y, w, h], i) => (
+                <div
+                  key={i}
+                  className="highlight-rect"
+                  style={{
+                    left: `${x * 100}%`,
+                    top: `${y * 100}%`,
+                    width: `${w * 100}%`,
+                    height: `${h * 100}%`,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

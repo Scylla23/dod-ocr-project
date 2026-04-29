@@ -13,6 +13,7 @@ const sample: SessionData = {
   values: { title: "Original", references: ["A", "B"] },
   original_extracted: { title: "OrigClaude", references: ["A"] },
   extraction_errors: [],
+  citations: {},
 };
 
 describe("store", () => {

@@ -1,4 +1,11 @@
-import type { FieldDef, PatchOp, ProvidersResponse, SessionData } from "./types";
+import type {
+  Citation,
+  FieldDef,
+  FieldValue,
+  PatchOp,
+  ProvidersResponse,
+  SessionData,
+} from "./types";
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -55,3 +62,69 @@ export const api = {
   pageTextLength: async (sid: string, page: number): Promise<{ length: number }> =>
     jsonOrThrow(await fetch(`/sessions/${sid}/page/${page}/text-length`)),
 };
+
+export interface StreamHandlers {
+  onField?: (name: string, value: FieldValue) => void;
+  onCitations?: (citations: Record<string, Citation>) => void;
+  onDone?: () => void;
+  onError?: (message: string) => void;
+}
+
+/**
+ * Open an SSE stream for incremental extraction. Returns a function that
+ * closes the stream early (e.g. on unmount).
+ */
+export function streamExtractPage(
+  sid: string,
+  page: number,
+  provider: string | undefined,
+  handlers: StreamHandlers,
+): () => void {
+  const params = new URLSearchParams({ page: String(page) });
+  if (provider) params.set("provider", provider);
+  const url = `/sessions/${sid}/extract-page/stream?${params.toString()}`;
+  const es = new EventSource(url);
+
+  const safeJson = <T>(raw: string): T | null => {
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  };
+
+  es.addEventListener("field", (e) => {
+    const ev = e as MessageEvent<string>;
+    const data = safeJson<{ name: string; value: FieldValue }>(ev.data);
+    if (data) handlers.onField?.(data.name, data.value);
+  });
+
+  es.addEventListener("citations", (e) => {
+    const ev = e as MessageEvent<string>;
+    const data = safeJson<Record<string, Citation>>(ev.data);
+    if (data) handlers.onCitations?.(data);
+  });
+
+  es.addEventListener("done", () => {
+    handlers.onDone?.();
+    es.close();
+  });
+
+  es.addEventListener("error", (e) => {
+    // SSE 'error' events fire both for our app-level error frame AND for
+    // generic transport errors. Only treat the framed event (which has data)
+    // as an app error; transport errors after `done` get ignored.
+    const ev = e as MessageEvent<string>;
+    if (typeof ev.data === "string") {
+      const data = safeJson<{ message: string }>(ev.data);
+      handlers.onError?.(data?.message ?? "stream error");
+    } else if (es.readyState === EventSource.CLOSED) {
+      // already closed by us; ignore
+    } else {
+      handlers.onError?.("connection lost");
+    }
+    es.close();
+  });
+
+  return () => es.close();
+}
