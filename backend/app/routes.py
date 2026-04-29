@@ -5,7 +5,7 @@ import logging
 from dataclasses import asdict
 from typing import Any
 
-from fastapi import APIRouter, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel
 
 from app import extractor
@@ -46,7 +46,15 @@ def _serialize_session(sid: str, state: SessionState) -> dict[str, Any]:
 
 
 @router.post("/upload")
-async def upload(file: UploadFile = File(...)):
+async def upload(request: Request, file: UploadFile = File(...)):
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            size = int(content_length)
+        except ValueError:
+            size = 0
+        if size > MAX_UPLOAD_BYTES:
+            raise HTTPException(413, f"file exceeds {MAX_UPLOAD_BYTES} bytes")
     if file.content_type not in ("application/pdf", "application/x-pdf"):
         raise HTTPException(400, "file must be a PDF")
     pdf_bytes = await file.read()
@@ -56,13 +64,15 @@ async def upload(file: UploadFile = File(...)):
         raise HTTPException(413, f"file exceeds {MAX_UPLOAD_BYTES} bytes")
 
     try:
-        n_pages = page_count(pdf_bytes)
+        n_pages = await asyncio.to_thread(page_count, pdf_bytes)
     except PdfOpenError as e:
         raise HTTPException(400, f"could not open PDF: {e}") from None
     if n_pages == 0:
         raise HTTPException(400, "PDF has zero pages")
 
-    page_images = [render_page_png(pdf_bytes, i) for i in range(n_pages)]
+    page_images = await asyncio.to_thread(
+        lambda: [render_page_png(pdf_bytes, i) for i in range(n_pages)]
+    )
     schema = list(DEFAULT_SCHEMA)
 
     pages_to_extract = list(range(min(AUTO_EXTRACT_PAGES, n_pages)))
@@ -107,20 +117,21 @@ class PatchOp(BaseModel):
 
 
 @router.patch("/sessions/{sid}/values")
-def patch_values(sid: str, op: PatchOp):
+async def patch_values(sid: str, op: PatchOp):
     try:
         state = store.get(sid)
     except KeyError:
         raise HTTPException(404, "unknown session") from None
-    state_dict = {
-        "schema": state.schema,
-        "values": state.values,
-        "original_extracted": state.original_extracted,
-    }
-    try:
-        apply_op(state_dict, op.model_dump(exclude_none=True))
-    except OpError as e:
-        raise HTTPException(400, str(e)) from None
+    async with state.lock:
+        state_dict = {
+            "schema": state.schema,
+            "values": state.values,
+            "original_extracted": state.original_extracted,
+        }
+        try:
+            apply_op(state_dict, op.model_dump(exclude_none=True))
+        except OpError as e:
+            raise HTTPException(400, str(e)) from None
     return {"field": op.field, "value": state.values.get(op.field)}
 
 
@@ -129,7 +140,7 @@ class AddFieldRequest(BaseModel):
 
 
 @router.post("/sessions/{sid}/fields")
-def add_field(sid: str, req: AddFieldRequest):
+async def add_field(sid: str, req: AddFieldRequest):
     try:
         state = store.get(sid)
     except KeyError:
@@ -138,31 +149,33 @@ def add_field(sid: str, req: AddFieldRequest):
         validate_field_name(req.name)
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
-    try:
-        new_schema = add_custom_field(state.schema, req.name)
-    except ValueError as e:
-        msg = str(e)
-        status = 409 if "already exists" in msg else 400
-        raise HTTPException(status, msg) from None
-    state.schema = new_schema
-    new_field = new_schema[-1]
-    state.values.setdefault(new_field.name, "")
+    async with state.lock:
+        try:
+            new_schema = add_custom_field(state.schema, req.name)
+        except ValueError as e:
+            msg = str(e)
+            status = 409 if "already exists" in msg else 400
+            raise HTTPException(status, msg) from None
+        state.schema = new_schema
+        new_field = new_schema[-1]
+        state.values.setdefault(new_field.name, "")
     return {"schema": [asdict(f) for f in state.schema]}
 
 
 @router.delete("/sessions/{sid}/fields/{name}")
-def delete_field(sid: str, name: str):
+async def delete_field(sid: str, name: str):
     try:
         state = store.get(sid)
     except KeyError:
         raise HTTPException(404, "unknown session") from None
-    try:
-        new_schema = remove_field(state.schema, name)
-    except ValueError as e:
-        raise HTTPException(400, str(e)) from None
-    state.schema = new_schema
-    state.values.pop(name, None)
-    state.original_extracted.pop(name, None)
+    async with state.lock:
+        try:
+            new_schema = remove_field(state.schema, name)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        state.schema = new_schema
+        state.values.pop(name, None)
+        state.original_extracted.pop(name, None)
     return {"schema": [asdict(f) for f in state.schema]}
 
 
@@ -183,24 +196,25 @@ async def extract_single_page(sid: str, req: ExtractPageRequest):
     if result is None:
         raise HTTPException(502, f"extraction failed for page {req.page}")
     # Re-merge: scalars only fill if currently empty; lists append-dedupe.
-    for f in state.schema:
-        v = result.get(f.name)
-        if f.type == "string":
-            if isinstance(v, str) and v.strip() and not state.values.get(f.name):
-                state.values[f.name] = v
-        else:
-            if isinstance(v, list):
-                current = state.values.setdefault(f.name, [])
-                seen = set(current)
-                for item in v:
-                    if isinstance(item, str) and item not in seen:
-                        seen.add(item)
-                        current.append(item)
+    async with state.lock:
+        for f in state.schema:
+            v = result.get(f.name)
+            if f.type == "string":
+                if isinstance(v, str) and v.strip() and not state.values.get(f.name):
+                    state.values[f.name] = v
+            else:
+                if isinstance(v, list):
+                    current = state.values.setdefault(f.name, [])
+                    seen = set(current)
+                    for item in v:
+                        if isinstance(item, str) and item not in seen:
+                            seen.add(item)
+                            current.append(item)
     return {"values": state.values}
 
 
 @router.get("/sessions/{sid}/page/{n}/text-length")
-def page_text_length(sid: str, n: int):
+async def page_text_length(sid: str, n: int):
     """Used by frontend to show a 'no selectable text' hint."""
     try:
         state = store.get(sid)
@@ -208,4 +222,4 @@ def page_text_length(sid: str, n: int):
         raise HTTPException(404, "unknown session") from None
     if n < 1 or n > len(state.page_images):
         raise HTTPException(400, "page out of range")
-    return {"length": text_length(state.pdf_bytes, n - 1)}
+    return {"length": await asyncio.to_thread(text_length, state.pdf_bytes, n - 1)}

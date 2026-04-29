@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -143,3 +143,48 @@ def test_extract_page_does_not_overwrite_user_scalar(client, fake_extract):
 def test_unknown_session_404(client):
     r = client.get("/sessions/nope/pdf")
     assert r.status_code == 404
+
+
+def test_upload_rejects_oversize_via_content_length(client):
+    # 50MB + 1 byte; content-length will be set automatically by httpx
+    big = b"%PDF-1.4\n" + b"\x00" * (50 * 1024 * 1024)
+    r = client.post("/upload", files={"file": ("big.pdf", big, "application/pdf")})
+    assert r.status_code == 413
+
+
+def test_extract_page_502_on_failure(client, fake_extract):
+    sid = _upload(client).json()["session_id"]
+    async def _fail(image, schema, client=None):
+        return None
+    with patch("app.routes.extractor.extract_page", side_effect=_fail):
+        r = client.post(f"/sessions/{sid}/extract-page", json={"page": 1})
+    assert r.status_code == 502
+
+
+def test_text_length_endpoint(client, fake_extract):
+    sid = _upload(client).json()["session_id"]
+    r = client.get(f"/sessions/{sid}/page/1/text-length")
+    assert r.status_code == 200
+    assert r.json()["length"] > 100
+
+
+def test_text_length_out_of_range(client, fake_extract):
+    sid = _upload(client).json()["session_id"]
+    r = client.get(f"/sessions/{sid}/page/99/text-length")
+    assert r.status_code == 400
+
+
+def test_patch_invalid_op_returns_400(client, fake_extract):
+    sid = _upload(client).json()["session_id"]
+    # set on a list field is rejected by apply_op
+    r = client.patch(
+        f"/sessions/{sid}/values",
+        json={"op": "set", "field": "references", "value": "X"},
+    )
+    assert r.status_code == 400
+
+
+def test_add_field_invalid_name_returns_400(client, fake_extract):
+    sid = _upload(client).json()["session_id"]
+    r = client.post(f"/sessions/{sid}/fields", json={"name": "bad name!"})
+    assert r.status_code == 400
