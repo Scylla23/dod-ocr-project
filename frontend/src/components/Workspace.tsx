@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { useApp } from "../store";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { FieldsPane } from "./FieldsPane";
 import { PdfPane } from "./PdfPane";
 import { SelectionPopover } from "./SelectionPopover";
@@ -23,6 +24,7 @@ export function Workspace() {
           <span className="workspace-provider">
             Model<strong>{selectedProvider ?? "default"}</strong>
           </span>
+          <DownloadCsvButton />
           <button className="link" onClick={reset}>New document</button>
         </span>
       </header>
