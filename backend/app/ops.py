@@ -46,7 +46,7 @@ def apply_op(state: dict, op: dict) -> None:
         if f.type != "list[string]":
             raise OpError(f"'remove' only valid for list fields; '{name}' is {f.type}")
         idx = op.get("index")
-        if not isinstance(idx, int):
+        if not isinstance(idx, int) or isinstance(idx, bool):
             raise OpError("op.index must be an int")
         current = state["values"].get(name, [])
         if idx < 0 or idx >= len(current):
@@ -56,6 +56,11 @@ def apply_op(state: dict, op: dict) -> None:
 
     if kind == "revert":
         original = state["original_extracted"].get(name)
+        if original is not None:
+            if f.type == "string" and not isinstance(original, str):
+                raise OpError(f"original for '{name}' is not a string")
+            if f.type == "list[string]" and not isinstance(original, list):
+                raise OpError(f"original for '{name}' is not a list")
         if original is None:
             state["values"][name] = "" if f.type == "string" else []
         else:

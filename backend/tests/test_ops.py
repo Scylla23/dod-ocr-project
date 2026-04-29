@@ -89,3 +89,32 @@ def test_unknown_op():
     s = base_state()
     with pytest.raises(OpError):
         apply_op(s, {"op": "delete", "field": "title"})
+
+
+def test_remove_rejects_bool_index():
+    s = base_state()
+    with pytest.raises(OpError):
+        apply_op(s, {"op": "remove", "field": "references", "index": True})
+
+
+def test_revert_list_with_no_original_uses_empty():
+    s = base_state()
+    s["original_extracted"].pop("references")
+    apply_op(s, {"op": "revert", "field": "references"})
+    assert s["values"]["references"] == []
+
+
+def test_revert_rejects_wrong_shape_original():
+    s = base_state()
+    s["original_extracted"]["title"] = ["wrong", "shape"]
+    with pytest.raises(OpError, match="not a string"):
+        apply_op(s, {"op": "revert", "field": "title"})
+    s2 = base_state()
+    s2["original_extracted"]["references"] = "wrong-shape"
+    with pytest.raises(OpError, match="not a list"):
+        apply_op(s2, {"op": "revert", "field": "references"})
+
+
+def test_missing_field_key():
+    with pytest.raises(OpError):
+        apply_op(base_state(), {"op": "set", "value": "x"})
