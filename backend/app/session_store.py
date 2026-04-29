@@ -17,6 +17,7 @@ class SessionState:
     original_extracted: dict[str, str | list[str]]
     extraction_errors: list[int] = field(default_factory=list)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    provider_name: str | None = None
 
 
 class SessionStore:

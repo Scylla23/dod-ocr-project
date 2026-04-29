@@ -5,7 +5,7 @@ import logging
 from dataclasses import asdict
 from typing import Any
 
-from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel
 
 from app import extractor
@@ -17,6 +17,7 @@ from app.pdf_renderer import (
     render_page_png,
     text_length,
 )
+from app.providers import DEFAULT_PROVIDER_NAME, PROVIDERS, list_providers
 from app.schema import (
     DEFAULT_SCHEMA,
     add_custom_field,
@@ -34,6 +35,11 @@ TOTAL_EXTRACT_TIMEOUT_S = 90.0
 router = APIRouter()
 
 
+@router.get("/providers")
+def get_providers():
+    return {"providers": list_providers(), "default": DEFAULT_PROVIDER_NAME}
+
+
 def _serialize_session(sid: str, state: SessionState) -> dict[str, Any]:
     return {
         "session_id": sid,
@@ -46,7 +52,13 @@ def _serialize_session(sid: str, state: SessionState) -> dict[str, Any]:
 
 
 @router.post("/upload")
-async def upload(request: Request, file: UploadFile = File(...)):
+async def upload(
+    request: Request,
+    file: UploadFile = File(...),
+    provider: str | None = Form(default=None),
+):
+    if provider is not None and provider not in PROVIDERS:
+        raise HTTPException(400, f"unknown provider '{provider}'")
     content_length = request.headers.get("content-length")
     if content_length is not None:
         try:
@@ -78,7 +90,7 @@ async def upload(request: Request, file: UploadFile = File(...)):
     pages_to_extract = list(range(min(AUTO_EXTRACT_PAGES, n_pages)))
     try:
         per_page_results = await asyncio.wait_for(
-            asyncio.gather(*(extractor.extract_page(page_images[i], schema) for i in pages_to_extract)),
+            asyncio.gather(*(extractor.extract_page(page_images[i], schema, provider_name=provider) for i in pages_to_extract)),
             timeout=TOTAL_EXTRACT_TIMEOUT_S,
         )
     except asyncio.TimeoutError:
@@ -95,6 +107,7 @@ async def upload(request: Request, file: UploadFile = File(...)):
         values=values,
         original_extracted=original_extracted,
         extraction_errors=extraction_errors,
+        provider_name=provider,
     )
     sid = store.create(state)
     return _serialize_session(sid, state)
@@ -181,10 +194,13 @@ async def delete_field(sid: str, name: str):
 
 class ExtractPageRequest(BaseModel):
     page: int  # 1-indexed
+    provider: str | None = None  # optional override; defaults to session's provider_name
 
 
 @router.post("/sessions/{sid}/extract-page")
 async def extract_single_page(sid: str, req: ExtractPageRequest):
+    if req.provider is not None and req.provider not in PROVIDERS:
+        raise HTTPException(400, f"unknown provider '{req.provider}'")
     try:
         state = store.get(sid)
     except KeyError:
@@ -192,7 +208,8 @@ async def extract_single_page(sid: str, req: ExtractPageRequest):
     page_idx = req.page - 1
     if page_idx < 0 or page_idx >= len(state.page_images):
         raise HTTPException(400, "page out of range")
-    result = await extractor.extract_page(state.page_images[page_idx], state.schema)
+    provider_name = req.provider or state.provider_name
+    result = await extractor.extract_page(state.page_images[page_idx], state.schema, provider_name=provider_name)
     if result is None:
         raise HTTPException(502, f"extraction failed for page {req.page}")
     # Re-merge: scalars only fill if currently empty; lists append-dedupe.

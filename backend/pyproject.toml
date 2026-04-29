@@ -8,6 +8,7 @@ dependencies = [
   "python-multipart>=0.0.9",
   "pymupdf>=1.24",
   "anthropic>=0.39",
+  "openai>=1.50",
   "pydantic>=2.6",
 ]
 

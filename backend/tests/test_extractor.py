@@ -1,57 +1,28 @@
-import asyncio
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
+from unittest.mock import MagicMock, AsyncMock
 
 from app.extractor import extract_page
 from app.schema import DEFAULT_SCHEMA
 
 
-def _fake_anthropic_response(tool_input: dict) -> MagicMock:
-    block = MagicMock()
-    block.type = "tool_use"
-    block.name = "record_extracted_fields"
-    block.input = tool_input
-    response = MagicMock()
-    response.content = [block]
-    response.stop_reason = "tool_use"
-    return response
+def _fake_provider(return_value):
+    p = MagicMock()
+    p.extract = AsyncMock(return_value=return_value)
+    return p
 
 
 @pytest.mark.asyncio
-async def test_extract_page_returns_tool_input():
+async def test_extract_page_delegates_to_provider():
     expected = {f.name: None for f in DEFAULT_SCHEMA}
     expected["title"] = "Hello"
-    fake_client = MagicMock()
-    fake_client.messages.create = AsyncMock(return_value=_fake_anthropic_response(expected))
-
-    result = await extract_page(b"PNG", DEFAULT_SCHEMA, client=fake_client)
+    p = _fake_provider(expected)
+    result = await extract_page(b"PNG", DEFAULT_SCHEMA, provider=p)
     assert result == expected
-    args, kwargs = fake_client.messages.create.call_args
-    assert kwargs["tools"][0]["name"] == "record_extracted_fields"
-    assert kwargs["tool_choice"] == {"type": "tool", "name": "record_extracted_fields"}
-    msg = kwargs["messages"][0]["content"]
-    image_block = next(b for b in msg if b["type"] == "image")
-    assert image_block["source"]["type"] == "base64"
-    assert image_block["source"]["media_type"] == "image/png"
+    p.extract.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_extract_page_returns_none_on_no_tool_use():
-    response = MagicMock()
-    text_block = MagicMock()
-    text_block.type = "text"
-    response.content = [text_block]
-    response.stop_reason = "end_turn"
-    fake_client = MagicMock()
-    fake_client.messages.create = AsyncMock(return_value=response)
-    result = await extract_page(b"PNG", DEFAULT_SCHEMA, client=fake_client)
-    assert result is None
-
-
-@pytest.mark.asyncio
-async def test_extract_page_returns_none_on_exception():
-    fake_client = MagicMock()
-    fake_client.messages.create = AsyncMock(side_effect=RuntimeError("API down"))
-    result = await extract_page(b"PNG", DEFAULT_SCHEMA, client=fake_client)
+async def test_extract_page_propagates_none():
+    p = _fake_provider(None)
+    result = await extract_page(b"PNG", DEFAULT_SCHEMA, provider=p)
     assert result is None

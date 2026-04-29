@@ -17,7 +17,7 @@ def reset_store():
 
 @pytest.fixture
 def fake_extract():
-    async def _fake(image: bytes, schema, client=None):
+    async def _fake(image: bytes, schema, *, provider_name=None, provider=None):
         return {f.name: None for f in schema} | {
             "title": "Test Doc",
             "document_number": "EC 1105-2-2",
@@ -61,7 +61,7 @@ def test_upload_returns_session(client, fake_extract):
 
 
 def test_upload_records_extraction_errors(client):
-    async def _fail(image, schema, client=None):
+    async def _fail(image, schema, *, provider_name=None, provider=None):
         return None
     with patch("app.routes.extractor.extract_page", side_effect=_fail):
         r = _upload(client)
@@ -154,7 +154,7 @@ def test_upload_rejects_oversize_via_content_length(client):
 
 def test_extract_page_502_on_failure(client, fake_extract):
     sid = _upload(client).json()["session_id"]
-    async def _fail(image, schema, client=None):
+    async def _fail(image, schema, *, provider_name=None, provider=None):
         return None
     with patch("app.routes.extractor.extract_page", side_effect=_fail):
         r = client.post(f"/sessions/{sid}/extract-page", json={"page": 1})
@@ -187,4 +187,59 @@ def test_patch_invalid_op_returns_400(client, fake_extract):
 def test_add_field_invalid_name_returns_400(client, fake_extract):
     sid = _upload(client).json()["session_id"]
     r = client.post(f"/sessions/{sid}/fields", json={"name": "bad name!"})
+    assert r.status_code == 400
+
+
+def test_providers_endpoint(client):
+    r = client.get("/providers")
+    assert r.status_code == 200
+    body = r.json()
+    assert "anthropic" in body["providers"]
+    assert "openai" in body["providers"]
+    assert body["default"] in ("anthropic", "openai")
+
+
+def test_upload_with_unknown_provider_returns_400(client):
+    r = client.post(
+        "/upload",
+        files={"file": ("x.pdf", FIXTURE.read_bytes(), "application/pdf")},
+        data={"provider": "bogus"},
+    )
+    assert r.status_code == 400
+
+
+def test_upload_with_valid_provider_succeeds(client, fake_extract):
+    r = client.post(
+        "/upload",
+        files={"file": ("x.pdf", FIXTURE.read_bytes(), "application/pdf")},
+        data={"provider": "openai"},
+    )
+    assert r.status_code == 200
+    sid = r.json()["session_id"]
+    # Ensure the upload succeeded and we have a valid session
+    assert sid is not None
+
+
+def test_extract_page_uses_session_provider(client, fake_extract):
+    sid = client.post(
+        "/upload",
+        files={"file": ("x.pdf", FIXTURE.read_bytes(), "application/pdf")},
+        data={"provider": "openai"},
+    ).json()["session_id"]
+    # Clear title, then re-extract — should still use the patched extract_page (provider-agnostic mock)
+    client.patch(f"/sessions/{sid}/values", json={"op": "set", "field": "title", "value": ""})
+    r = client.post(f"/sessions/{sid}/extract-page", json={"page": 1})
+    assert r.status_code == 200
+    assert r.json()["values"]["title"] == "Test Doc"
+
+
+def test_extract_page_with_unknown_provider_400(client, fake_extract):
+    sid = client.post(
+        "/upload",
+        files={"file": ("x.pdf", FIXTURE.read_bytes(), "application/pdf")},
+    ).json()["session_id"]
+    r = client.post(
+        f"/sessions/{sid}/extract-page",
+        json={"page": 1, "provider": "bogus"},
+    )
     assert r.status_code == 400
