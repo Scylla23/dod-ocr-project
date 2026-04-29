@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { FieldsPane } from "./FieldsPane";
 import { PdfPane } from "./PdfPane";
 import { SelectionPopover } from "./SelectionPopover";
 
@@ -14,9 +15,7 @@ export function Workspace() {
   return (
     <div className="workspace">
       <PdfPane onSelectText={setSelection} />
-      <div className="fields-pane">
-        <p className="placeholder">Fields panel — populated in Task 14.</p>
-      </div>
+      <FieldsPane />
       {selection && (
         <SelectionPopover
           text={selection.text}
