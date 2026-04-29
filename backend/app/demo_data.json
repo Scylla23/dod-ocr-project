@@ -1,0 +1,239 @@
+{
+  "pdf_filename": "EC_1105-2-6_19730309.pdf",
+  "page_count": 2,
+  "schema": [
+    {
+      "name": "title",
+      "type": "string",
+      "removable": false
+    },
+    {
+      "name": "document_type",
+      "type": "string",
+      "removable": false
+    },
+    {
+      "name": "document_number",
+      "type": "string",
+      "removable": false
+    },
+    {
+      "name": "effective_date",
+      "type": "string",
+      "removable": false
+    },
+    {
+      "name": "summary",
+      "type": "string",
+      "removable": false
+    },
+    {
+      "name": "proponent_office",
+      "type": "string",
+      "removable": true
+    },
+    {
+      "name": "issuing_authority",
+      "type": "string",
+      "removable": true
+    },
+    {
+      "name": "applicability",
+      "type": "string",
+      "removable": true
+    },
+    {
+      "name": "superseded_documents",
+      "type": "string",
+      "removable": true
+    },
+    {
+      "name": "references",
+      "type": "list[string]",
+      "removable": true
+    }
+  ],
+  "values": {
+    "title": "FUNDING STUDIES UNDER CONTINUING AUTHORITIES",
+    "document_type": "Circular",
+    "document_number": "EC 1105-2-6",
+    "effective_date": "9 March 1973",
+    "summary": "This circular provides guidance concerning the delegated authority and the limits of funding which can be initially charged to the Revolving Fund for undertaking reconnaissance reports for flood control, beach erosion control, and navigation studies under continuing authorities for projects having a Federal cost of not over $1,000,000, and letter reports for clearing and snagging projects for flood control having a Federal cost of not over $100,000.",
+    "proponent_office": "DAEN-CWR-L DAEN-CWP-A",
+    "issuing_authority": "Office of the Chief of Engineers",
+    "applicability": "The circular applies to all Corps of Engineers elements having Civil Works planning responsibilities.",
+    "superseded_documents": "EC 1105-2-2, 15 Jun 72",
+    "references": [
+      "ER 1165-2-12, Small Flood Control Projects not Specifically Authorized by Congress",
+      "ER 1165-2-13, Small Beach Erosion Control Project Program",
+      "ER 1165-2-14, Small Navigation Project Program",
+      "ER 1165-2-101, Special Continuing Authorities",
+      "ER 1165-2-5, Coordination with the Public on Civil Works Activities"
+    ]
+  },
+  "extraction_errors": [],
+  "citations": {
+    "title": {
+      "page": 1,
+      "rects": [
+        [
+          0.29586,
+          0.24384,
+          0.43281,
+          0.01245
+        ]
+      ],
+      "quote": "FUNDING STUDIES UNDER CONTINUING AUTHORITIES"
+    },
+    "document_type": {
+      "page": 1,
+      "rects": [
+        [
+          0.15979,
+          0.16304,
+          0.07748,
+          0.01245
+        ],
+        [
+          0.35268,
+          0.28493,
+          0.07699,
+          0.01245
+        ],
+        [
+          0.3965,
+          0.40807,
+          0.07731,
+          0.01245
+        ],
+        [
+          0.21322,
+          0.84273,
+          0.07748,
+          0.01245
+        ]
+      ],
+      "quote": "Circular"
+    },
+    "document_number": {
+      "page": 2,
+      "rects": [
+        [
+          0.19329,
+          0.07844,
+          0.10799,
+          0.01249
+        ]
+      ],
+      "quote": "EC 1105-2-6"
+    },
+    "summary": {
+      "page": 1,
+      "rects": [
+        [
+          0.30232,
+          0.28493,
+          0.54523,
+          0.01245
+        ],
+        [
+          0.16028,
+          0.30049,
+          0.34138,
+          0.01245
+        ]
+      ],
+      "quote": "This circular provides guidance concerning the delegated authority and the limits of funding"
+    },
+    "issuing_authority": {
+      "page": 1,
+      "rects": [
+        [
+          0.35816,
+          0.10128,
+          0.3141,
+          0.01245
+        ]
+      ],
+      "quote": "Office of the Chief of Engineers"
+    },
+    "applicability": {
+      "page": 1,
+      "rects": [
+        [
+          0.35655,
+          0.4079,
+          0.55169,
+          0.01262
+        ],
+        [
+          0.15931,
+          0.42351,
+          0.43072,
+          0.01245
+        ]
+      ],
+      "quote": "The circular applies to all Corps of Engineers elements having Civil Works planning responsibilities"
+    },
+    "superseded_documents": {
+      "page": 1,
+      "rects": [
+        [
+          0.16367,
+          0.84273,
+          0.37172,
+          0.01245
+        ],
+        [
+          0.54055,
+          0.84273,
+          0.087,
+          0.01245
+        ]
+      ],
+      "quote": "This Circular supersedes EC 1105-2-2, 15 Jun 72"
+    },
+    "references": {
+      "page": 1,
+      "rects": [
+        [
+          0.23808,
+          0.48402,
+          0.13494,
+          0.01245
+        ],
+        [
+          0.37785,
+          0.48385,
+          0.45259,
+          0.01262
+        ],
+        [
+          0.15899,
+          0.49934,
+          0.21411,
+          0.01245
+        ]
+      ],
+      "quote": "ER 1165-2-12, Small Flood Control Projects not Specifically Authorized by Congress"
+    },
+    "effective_date": {
+      "page": 2,
+      "rects": [
+        [
+          0.19329,
+          0.09118,
+          0.05818,
+          0.01249
+        ],
+        [
+          0.25477,
+          0.09118,
+          0.01794,
+          0.01249
+        ]
+      ],
+      "quote": "9 Mar 73"
+    }
+  }
+}
