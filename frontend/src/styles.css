@@ -4,3 +4,15 @@
 }
 body { margin: 0; }
 .app { padding: 24px; }
+
+.upload { max-width: 480px; margin: 64px auto; }
+.upload-drop {
+  display: block;
+  padding: 48px 24px;
+  border: 2px dashed #aaa;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+}
+.upload-drop input { display: block; margin: 12px auto 0; }
+.error { color: #c00; }
