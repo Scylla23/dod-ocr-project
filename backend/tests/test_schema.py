@@ -68,3 +68,32 @@ def test_remove_field_drops_removable():
     schema = list(DEFAULT_SCHEMA)
     new_schema = remove_field(schema, "references")
     assert "references" not in [f.name for f in new_schema]
+
+
+def test_default_schema_is_immutable():
+    assert isinstance(DEFAULT_SCHEMA, tuple)
+
+
+def test_remove_field_is_case_insensitive():
+    schema = list(DEFAULT_SCHEMA)
+    new_schema = add_custom_field(schema, "Keywords")
+    result = remove_field(new_schema, "keywords")
+    assert "Keywords" not in [f.name for f in result]
+    assert len(result) == len(new_schema) - 1
+
+
+def test_remove_field_unknown_field():
+    schema = list(DEFAULT_SCHEMA)
+    with pytest.raises(ValueError, match="not found"):
+        remove_field(schema, "nonexistent")
+
+
+def test_add_and_remove_field_do_not_mutate_input():
+    schema = list(DEFAULT_SCHEMA)
+    original_len = len(schema)
+    add_custom_field(schema, "x")
+    assert len(schema) == original_len
+
+    schema_with_x = add_custom_field(schema, "x")
+    remove_field(schema_with_x, "x")
+    assert len(schema_with_x) == original_len + 1

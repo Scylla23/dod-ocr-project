@@ -16,7 +16,7 @@ class FieldDef:
     removable: bool
 
 
-DEFAULT_SCHEMA: list[FieldDef] = [
+DEFAULT_SCHEMA: tuple[FieldDef, ...] = (
     # Generic core (not removable)
     FieldDef("title", "string", False),
     FieldDef("document_type", "string", False),
@@ -30,7 +30,7 @@ DEFAULT_SCHEMA: list[FieldDef] = [
     FieldDef("superseded_documents", "string", True),
     # List
     FieldDef("references", "list[string]", True),
-]
+)
 
 
 def validate_field_name(name: str) -> None:
@@ -53,12 +53,12 @@ def add_custom_field(schema: list[FieldDef], name: str) -> list[FieldDef]:
 
 
 def remove_field(schema: list[FieldDef], name: str) -> list[FieldDef]:
-    target = next((f for f in schema if f.name == name), None)
+    target = next((f for f in schema if f.name.lower() == name.lower()), None)
     if target is None:
         raise ValueError(f"field '{name}' not found")
     if not target.removable:
-        raise ValueError(f"field '{name}' is not removable")
-    return [f for f in schema if f.name != name]
+        raise ValueError(f"field '{target.name}' is not removable")
+    return [f for f in schema if f.name.lower() != name.lower()]
 
 
 def build_tool_input_schema(schema: list[FieldDef]) -> dict:
