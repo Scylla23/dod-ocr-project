@@ -1,0 +1,27 @@
+# Sample PDFs (inputs, not source)
+DOD SAFE-*/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Brainstorming companion
+.superpowers/
+
+# Env
+.env
+.env.local
