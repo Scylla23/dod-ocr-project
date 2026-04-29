@@ -16,3 +16,19 @@ body { margin: 0; }
 }
 .upload-drop input { display: block; margin: 12px auto 0; }
 .error { color: #c00; }
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(720px, 1fr) 420px;
+  gap: 16px;
+  padding: 16px;
+  height: 100vh;
+  box-sizing: border-box;
+}
+.pdf-pane { display: flex; flex-direction: column; gap: 8px; overflow: auto; }
+.pager { display: flex; gap: 8px; align-items: center; }
+.pager button { padding: 4px 12px; }
+.pdf-canvas { background: #f4f4f4; padding: 8px; border-radius: 4px; user-select: text; }
+.hint { background: #fff3cd; padding: 6px 10px; border-radius: 4px; font-size: 12px; }
+.fields-pane { overflow: auto; border-left: 1px solid #ddd; padding-left: 16px; }
+.placeholder { color: #888; }
