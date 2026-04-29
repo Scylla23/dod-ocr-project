@@ -1,7 +1,14 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
-from app.routes import router
+# Load .env from the backend/ directory (one level above app/) so the
+# server picks up ANTHROPIC_API_KEY, OPENAI_API_KEY, etc. without needing
+# to prefix every uvicorn invocation. Falls back silently if no file.
+load_dotenv()
+
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+from app.routes import router  # noqa: E402
 
 app = FastAPI(title="PDF Extract")
 

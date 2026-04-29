@@ -3,7 +3,8 @@
 Run after each major change. Backend on `:8000`, frontend on `:5173`.
 
 ## Setup
-- [ ] `cd backend && ANTHROPIC_API_KEY=… uvicorn app.main:app --reload --port 8000`
+- [ ] Copy `backend/.env.example` to `backend/.env` and fill in real API keys.
+- [ ] `cd backend && uvicorn app.main:app --reload --port 8000`
 - [ ] `cd frontend && npm run dev`
 - [ ] Open http://localhost:5173
 
