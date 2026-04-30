@@ -7,6 +7,8 @@ import type {
   SessionData,
 } from "./types";
 
+export const API_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/api`;
+
 async function jsonOrThrow<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const detail = await res.text();
@@ -17,19 +19,19 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
 
 export const api = {
   getProviders: async (): Promise<ProvidersResponse> =>
-    jsonOrThrow(await fetch("/providers")),
+    jsonOrThrow(await fetch(`${API_BASE}/providers`)),
   loadDemo: async (): Promise<SessionData> =>
-    jsonOrThrow(await fetch("/demo/session", { method: "POST" })),
+    jsonOrThrow(await fetch(`${API_BASE}/demo/session`, { method: "POST" })),
   upload: async (file: File, provider?: string): Promise<SessionData> => {
     const fd = new FormData();
     fd.append("file", file);
     if (provider) fd.append("provider", provider);
-    return jsonOrThrow(await fetch("/upload", { method: "POST", body: fd }));
+    return jsonOrThrow(await fetch(`${API_BASE}/upload`, { method: "POST", body: fd }));
   },
-  pdfUrl: (sid: string) => `/sessions/${sid}/pdf`,
+  pdfUrl: (sid: string) => `${API_BASE}/sessions/${sid}/pdf`,
   patchValues: async (sid: string, op: PatchOp): Promise<{ field: string; value: unknown }> =>
     jsonOrThrow(
-      await fetch(`/sessions/${sid}/values`, {
+      await fetch(`${API_BASE}/sessions/${sid}/values`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(op),
@@ -37,7 +39,7 @@ export const api = {
     ),
   addField: async (sid: string, name: string): Promise<{ schema: FieldDef[] }> =>
     jsonOrThrow(
-      await fetch(`/sessions/${sid}/fields`, {
+      await fetch(`${API_BASE}/sessions/${sid}/fields`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
@@ -45,7 +47,7 @@ export const api = {
     ),
   deleteField: async (sid: string, name: string): Promise<{ schema: FieldDef[] }> =>
     jsonOrThrow(
-      await fetch(`/sessions/${sid}/fields/${encodeURIComponent(name)}`, {
+      await fetch(`${API_BASE}/sessions/${sid}/fields/${encodeURIComponent(name)}`, {
         method: "DELETE",
       }),
     ),
@@ -55,14 +57,14 @@ export const api = {
     provider?: string,
   ): Promise<{ values: Record<string, unknown> }> =>
     jsonOrThrow(
-      await fetch(`/sessions/${sid}/extract-page`, {
+      await fetch(`${API_BASE}/sessions/${sid}/extract-page`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(provider ? { page, provider } : { page }),
       }),
     ),
   pageTextLength: async (sid: string, page: number): Promise<{ length: number }> =>
-    jsonOrThrow(await fetch(`/sessions/${sid}/page/${page}/text-length`)),
+    jsonOrThrow(await fetch(`${API_BASE}/sessions/${sid}/page/${page}/text-length`)),
 };
 
 export interface StreamHandlers {
@@ -84,7 +86,7 @@ export function streamExtractPage(
 ): () => void {
   const params = new URLSearchParams({ page: String(page) });
   if (provider) params.set("provider", provider);
-  const url = `/sessions/${sid}/extract-page/stream?${params.toString()}`;
+  const url = `${API_BASE}/sessions/${sid}/extract-page/stream?${params.toString()}`;
   const es = new EventSource(url);
 
   const safeJson = <T>(raw: string): T | null => {

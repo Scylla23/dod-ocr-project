@@ -1,3 +1,5 @@
+import os
+
 from dotenv import load_dotenv
 
 # Load .env from the backend/ directory (one level above app/) so the
@@ -10,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
 from app.routes import router  # noqa: E402
 
-app = FastAPI(title="PDF Extract")
+app = FastAPI(title="PDF Extract", root_path=os.getenv("ROOT_PATH", ""))
 
 app.add_middleware(
     CORSMiddleware,

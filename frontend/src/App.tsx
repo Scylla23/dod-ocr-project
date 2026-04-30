@@ -39,7 +39,7 @@ export function App() {
     }
   }, [path, session, reset]);
 
-  if (path === "/demo") {
+  if (path.startsWith("/demo/usace-digital-library")) {
     return demoAuthed
       ? <Demo />
       : <DemoGate onUnlock={() => setDemoAuthed(true)} />;

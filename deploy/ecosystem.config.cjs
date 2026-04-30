@@ -9,6 +9,9 @@ module.exports = {
       script: "/home/ubuntu/.local/bin/uv",
       args: "run uvicorn app.main:app --host 127.0.0.1 --port 8000",
       interpreter: "none",
+      env: {
+        ROOT_PATH: "/app/pdfextractor/api",
+      },
       autorestart: true,
       max_restarts: 10,
       restart_delay: 3000,
