@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import logoUrl from "../assets/bravent-logo.png";
 import { api } from "../api";
 import { useApp } from "../store";
 import { Workspace } from "./Workspace";
@@ -9,7 +10,6 @@ type Phase = "loading" | "ready" | "error";
 export function Demo() {
   const session = useApp((s) => s.session);
   const setSession = useApp((s) => s.setSession);
-  const reset = useApp((s) => s.reset);
   const [phase, setPhase] = useState<Phase>(session ? "ready" : "loading");
   const [error, setError] = useState<string | null>(null);
   const loadedRef = useRef(false);
@@ -37,11 +37,16 @@ export function Demo() {
 
   if (phase === "loading") {
     return (
-      <div className="demo-splash">
-        <div className="demo-splash-card">
-          <span className="demo-splash-glyph" aria-hidden>¶</span>
-          <h1>Loading the demo</h1>
-          <p>Preparing a pre-extracted USACE engineering circular for you to play with.</p>
+      <div className="brief-splash">
+        <div className="brief-splash-grid" aria-hidden />
+        <div className="brief-splash-card">
+          <img className="brief-splash-logo" src={logoUrl} alt="Bravent" />
+          <span className="brief-splash-id">FETCHING · USACE · EC 1105-2-6</span>
+          <h1>Standing up the briefing.</h1>
+          <p>Loading a pre-extracted U.S. Army Corps of Engineers circular.</p>
+          <div className="brief-splash-bar" aria-hidden>
+            <span />
+          </div>
         </div>
       </div>
     );
@@ -49,19 +54,23 @@ export function Demo() {
 
   if (phase === "error") {
     return (
-      <div className="demo-splash">
-        <div className="demo-splash-card">
-          <h1>Could not load the demo</h1>
-          <p className="error">{error}</p>
+      <div className="brief-splash">
+        <div className="brief-splash-card">
+          <img className="brief-splash-logo" src={logoUrl} alt="Bravent" />
+          <span className="brief-splash-id brief-splash-id--alert">
+            ERR · DEMO LOAD FAILED
+          </span>
+          <h1>Could not stand up the briefing.</h1>
+          <p className="brief-splash-error">{error}</p>
           <button
-            className="link"
+            className="brief-retry"
             onClick={() => {
               loadedRef.current = false;
               setError(null);
               setPhase("loading");
             }}
           >
-            Try again
+            Retry
           </button>
         </div>
       </div>
@@ -69,24 +78,35 @@ export function Demo() {
   }
 
   return (
-    <div className="demo-shell">
-      <div className="demo-banner">
-        <span className="demo-banner-tag">Demo</span>
-        <span className="demo-banner-text">
-          Pre-extracted from <em>EC 1105-2-6</em> · 9 March 1973 · edits stay in your browser session.
+    <div className="brief-shell">
+      <div className="brief-classification" aria-hidden>
+        <span className="brief-classification-bar" />
+        <span className="brief-classification-text">
+          CONTROLLED · DEMONSTRATION ENVIRONMENT · BRAVENT × U.S. ARMY
         </span>
-        <button
-          className="link"
-          onClick={() => {
-            reset();
-            window.history.pushState({}, "", "/");
-            window.dispatchEvent(new PopStateEvent("popstate"));
-          }}
-        >
-          Exit demo
-        </button>
+        <span className="brief-classification-bar" />
       </div>
-      <Workspace />
+
+      <header className="brief-commandbar">
+        <a className="brief-brand brief-brand--compact" href="/" aria-label="Bravent home">
+          <img src={logoUrl} alt="Bravent" />
+        </a>
+        <div className="brief-commandbar-doc">
+          <span className="brief-commandbar-tag">Active brief</span>
+          <span className="brief-commandbar-title">EC 1105-2-6</span>
+          <span className="brief-commandbar-sub">USACE Engineering Circular · 9 March 1973</span>
+        </div>
+        <div className="brief-commandbar-actions">
+          <span className="brief-session">
+            <span className="brief-status-pulse" />
+            Session local · edits stay in this browser
+          </span>
+        </div>
+      </header>
+
+      <div className="brief-workspace">
+        <Workspace showNewDocument={false} />
+      </div>
     </div>
   );
 }

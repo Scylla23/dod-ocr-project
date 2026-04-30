@@ -11,7 +11,11 @@ interface PendingSelection {
   rect: DOMRect;
 }
 
-export function Workspace() {
+interface Props {
+  showNewDocument?: boolean;
+}
+
+export function Workspace({ showNewDocument = true }: Props) {
   const [selection, setSelection] = useState<PendingSelection | null>(null);
   const selectedProvider = useApp((s) => s.selectedProvider);
   const reset = useApp((s) => s.reset);
@@ -25,7 +29,9 @@ export function Workspace() {
             Model<strong>{selectedProvider ?? "default"}</strong>
           </span>
           <DownloadCsvButton />
-          <button className="link" onClick={reset}>New document</button>
+          {showNewDocument && (
+            <button className="link" onClick={reset}>New document</button>
+          )}
         </span>
       </header>
       <div className="workspace-body">
