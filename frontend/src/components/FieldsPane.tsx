@@ -11,7 +11,11 @@ function valuesEqual(a: unknown, b: unknown): boolean {
   return a === b;
 }
 
-export function FieldsPane() {
+interface Props {
+  showReExtract?: boolean;
+}
+
+export function FieldsPane({ showReExtract = true }: Props = {}) {
   const session = useApp((s) => s.session)!;
   const currentPage = useApp((s) => s.currentPage);
   const setFieldValue = useApp((s) => s.setFieldValue);
@@ -111,12 +115,14 @@ export function FieldsPane() {
   return (
     <div className="fields-pane">
       <p className="fields-section-label">Extracted fields</p>
-      <div className="fields-toolbar">
-        <button onClick={handleReExtract} disabled={busy}>
-          {busy ? "Streaming…" : `↻ Re-extract page ${currentPage}`}
-        </button>
-        {busy && <span className="stream-indicator" aria-hidden />}
-      </div>
+      {showReExtract && (
+        <div className="fields-toolbar">
+          <button onClick={handleReExtract} disabled={busy}>
+            {busy ? "Streaming…" : `↻ Re-extract page ${currentPage}`}
+          </button>
+          {busy && <span className="stream-indicator" aria-hidden />}
+        </div>
+      )}
       {session.extraction_errors.length > 0 && (
         <div className="banner">
           Initial extraction failed for page(s): {session.extraction_errors.join(", ")}

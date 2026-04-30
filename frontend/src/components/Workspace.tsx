@@ -13,9 +13,10 @@ interface PendingSelection {
 
 interface Props {
   showNewDocument?: boolean;
+  showReExtract?: boolean;
 }
 
-export function Workspace({ showNewDocument = true }: Props) {
+export function Workspace({ showNewDocument = true, showReExtract = true }: Props) {
   const [selection, setSelection] = useState<PendingSelection | null>(null);
   const selectedProvider = useApp((s) => s.selectedProvider);
   const reset = useApp((s) => s.reset);
@@ -36,7 +37,7 @@ export function Workspace({ showNewDocument = true }: Props) {
       </header>
       <div className="workspace-body">
         <PdfPane onSelectText={setSelection} />
-        <FieldsPane />
+        <FieldsPane showReExtract={showReExtract} />
       </div>
       {selection && (
         <SelectionPopover
