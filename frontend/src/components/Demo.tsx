@@ -105,7 +105,7 @@ export function Demo() {
       </header>
 
       <div className="brief-workspace">
-        <Workspace showNewDocument={false} showReExtract={false} />
+        <Workspace showNewDocument={false} showReExtract={false} showProvider={false} />
       </div>
     </div>
   );
