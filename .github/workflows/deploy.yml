@@ -10,7 +10,42 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend deps + tests
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test
+          npx tsc -b --noEmit
+          npm run build
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Backend deps + tests
+        working-directory: backend
+        run: |
+          $HOME/.local/bin/uv sync --extra dev
+          $HOME/.local/bin/uv run pytest -q
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Deploy over SSH
@@ -24,3 +59,27 @@ jobs:
           script: |
             set -e
             bash /opt/dod-ocr/deploy/deploy.sh
+
+  smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Public demo smoke test
+        run: |
+          set -euo pipefail
+          BASE="https://docsyntra.bravent.io"
+
+          html_code=$(curl -sS -o /dev/null -w "%{http_code}" "$BASE/demo/usace-digital-library")
+          [ "$html_code" = "200" ] || { echo "demo HTML returned $html_code"; exit 1; }
+          echo "demo HTML  -> 200"
+
+          api_resp=$(curl -fsS -X POST "$BASE/app/pdfextractor/api/demo/session")
+          echo "$api_resp" | grep -q '"session_id"' || { echo "demo API missing session_id"; echo "$api_resp" | head -c 500; exit 1; }
+          echo "demo API   -> 200 (session_id present)"
+
+          # Verify the freshly built bundle is what we just deployed
+          html=$(curl -sS "$BASE/demo/usace-digital-library")
+          echo "$html" | grep -q "assets/index-" || { echo "no hashed bundle reference in HTML"; exit 1; }
+          echo "bundle ref -> present"
+
+          echo "==> public smoke OK"

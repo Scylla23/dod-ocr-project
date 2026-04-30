@@ -52,15 +52,33 @@ echo "==> reload nginx"
 sudo /bin/systemctl reload nginx
 
 echo "==> wait for backend ready"
+backend_ready=false
 for i in $(seq 1 30); do
   if curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1; then
     echo "==> backend healthy after ${i}s"
-    echo "==> deploy OK"
-    exit 0
+    backend_ready=true
+    break
   fi
   sleep 1
 done
 
-echo "health check failed after 30s"
-"$PM2" logs dod-ocr-backend --lines 30 --nostream || true
-exit 1
+if [ "$backend_ready" != true ]; then
+  echo "health check failed after 30s"
+  "$PM2" logs dod-ocr-backend --lines 30 --nostream || true
+  exit 1
+fi
+
+echo "==> demo smoke test (POST /demo/session)"
+DEMO_RESP=$(curl -fsS -X POST http://127.0.0.1:8000/demo/session 2>&1) || {
+  echo "demo endpoint failed: $DEMO_RESP"
+  "$PM2" logs dod-ocr-backend --lines 30 --nostream || true
+  exit 1
+}
+if ! echo "$DEMO_RESP" | grep -q '"session_id"'; then
+  echo "demo response missing session_id: $DEMO_RESP"
+  exit 1
+fi
+echo "==> demo session creation OK"
+
+echo "==> deploy OK"
+exit 0
