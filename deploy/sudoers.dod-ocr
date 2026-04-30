@@ -1,1 +1,1 @@
-ubuntu ALL=(ALL) NOPASSWD: /bin/systemctl restart dod-ocr-backend, /bin/systemctl reload nginx, /bin/systemctl status dod-ocr-backend
+ubuntu ALL=(ALL) NOPASSWD: /bin/systemctl reload nginx

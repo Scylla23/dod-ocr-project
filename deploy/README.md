@@ -1,14 +1,14 @@
 # Deployment
 
-Single-VM Oracle Cloud deploy. Nginx serves static frontend, reverse-proxies backend on port 8000. Systemd manages uvicorn. GitHub Actions SSHes into VM on push to `main` and runs `deploy/deploy.sh`.
+Single-VM Oracle Cloud deploy. Nginx serves the static frontend and reverse-proxies the backend on port 8000. **pm2** manages the uvicorn process. GitHub Actions SSHes into the VM on push to `main` and runs `deploy/deploy.sh`.
 
 ## Files
 
-- `dod-ocr-backend.service` — installed at `/etc/systemd/system/dod-ocr-backend.service`
+- `ecosystem.config.cjs` — pm2 app definition for the backend
 - `nginx.conf` — installed at `/etc/nginx/sites-available/dod-ocr`, symlinked into `sites-enabled`
-- `sudoers.dod-ocr` — installed at `/etc/sudoers.d/dod-ocr` (mode 0440), grants `ubuntu` passwordless restart of backend and nginx reload
+- `sudoers.dod-ocr` — installed at `/etc/sudoers.d/dod-ocr` (mode 0440); grants `ubuntu` passwordless `nginx reload` only
 - `deploy.sh` — idempotent deploy run by CI on the server
-- `../.github/workflows/deploy.yml` — pushes to `main` trigger SSH deploy
+- `../.github/workflows/deploy.yml` — pushes to `main` trigger the SSH deploy
 
 ## Required GitHub Actions secrets
 
@@ -19,10 +19,20 @@ Single-VM Oracle Cloud deploy. Nginx serves static frontend, reverse-proxies bac
 
 ## Backend `.env`
 
-Lives at `/opt/dod-ocr/backend/.env` on server (gitignored). Provision once by hand. Restart backend after changes:
+Lives at `/opt/dod-ocr/backend/.env` on the server (gitignored). Provisioned manually. Auto-loaded by `app/main.py` via `python-dotenv`. After editing `.env`, reload backend:
 
 ```
-sudo systemctl restart dod-ocr-backend
+pm2 reload dod-ocr-backend --update-env
+```
+
+## pm2 startup (one-time, run as ubuntu on server)
+
+```
+sudo npm install -g pm2
+sudo mkdir -p /var/log/dod-ocr && sudo chown ubuntu:ubuntu /var/log/dod-ocr
+pm2 start /opt/dod-ocr/deploy/ecosystem.config.cjs
+pm2 save
+sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u ubuntu --hp /home/ubuntu
 ```
 
 ## Adding HTTPS later
