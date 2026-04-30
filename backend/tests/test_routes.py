@@ -233,6 +233,28 @@ def test_extract_page_uses_session_provider(client, fake_extract):
     assert r.json()["values"]["title"] == "Test Doc"
 
 
+def test_serialize_session_includes_confidences(client, fake_extract):
+    r = _upload(client)
+    body = r.json()
+    assert "confidences" in body
+    assert isinstance(body["confidences"], dict)
+    # All schema fields present in confidences map
+    for f in body["schema"]:
+        assert f["name"] in body["confidences"]
+
+
+def test_demo_session_has_hardcoded_confidences(client):
+    r = client.post("/demo/session")
+    assert r.status_code == 200
+    body = r.json()
+    confs = body["confidences"]
+    assert confs["title"] == 0.98
+    assert confs["document_type"] == 0.95
+    assert confs["document_number"] == 0.97
+    assert confs["effective_date"] == 0.92
+    assert confs["summary"] == 0.78
+
+
 def test_extract_page_with_unknown_provider_400(client, fake_extract):
     sid = client.post(
         "/upload",

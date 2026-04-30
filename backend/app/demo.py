@@ -39,6 +39,7 @@ def create_demo_session() -> tuple[str, SessionState]:
         k: (list(v) if isinstance(v, list) else v) for k, v in payload["values"].items()
     }
     citations = {k: dict(v) for k, v in payload.get("citations", {}).items()}
+    confidences = {k: float(v) for k, v in payload.get("confidences", {}).items()}
 
     state = SessionState(
         pdf_bytes=pdf_bytes,
@@ -48,6 +49,7 @@ def create_demo_session() -> tuple[str, SessionState]:
         original_extracted=original,
         extraction_errors=list(payload.get("extraction_errors", [])),
         citations=citations,
+        confidences=confidences,
     )
     sid = store.create(state)
     return sid, state

@@ -62,7 +62,7 @@ async def main() -> None:
         per_page_quotes.append(q)
 
     extraction_errors = [i + 1 for i, r in enumerate(per_page_results) if r is None]
-    values = merge_page_results(per_page_results, schema)
+    values, _self_confidences = merge_page_results(per_page_results, schema)
 
     citations: dict[str, dict] = {}
     for page_idx, quotes in enumerate(per_page_quotes):

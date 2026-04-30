@@ -14,6 +14,7 @@ const sample: SessionData = {
   original_extracted: { title: "OrigClaude", references: ["A"] },
   extraction_errors: [],
   citations: {},
+  confidences: {},
 };
 
 describe("store", () => {
@@ -58,6 +59,14 @@ describe("store", () => {
     useApp.getState().setFieldValue("keywords", "x");
     useApp.getState().revertField("keywords");
     expect(useApp.getState().session?.values.keywords).toBe("");
+  });
+
+  it("applyConfidences merges into session.confidences", () => {
+    useApp.getState().setSession({ ...sample, confidences: { title: 0.9 } });
+    useApp.getState().applyConfidences({ references: 0.6 });
+    expect(useApp.getState().session?.confidences).toEqual({ title: 0.9, references: 0.6 });
+    useApp.getState().applyConfidences({ title: 0.95 });
+    expect(useApp.getState().session?.confidences).toEqual({ title: 0.95, references: 0.6 });
   });
 
   it("setSelectedProvider updates state", () => {

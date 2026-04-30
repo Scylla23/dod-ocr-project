@@ -22,8 +22,10 @@ from app.pdf_renderer import (
 )
 from app.providers import DEFAULT_PROVIDER_NAME, PROVIDERS, list_providers
 from app.schema import (
+    CONFIDENCE_KEY,
     DEFAULT_SCHEMA,
     EVIDENCE_KEY,
+    FieldDef,
     add_custom_field,
     remove_field,
     validate_field_name,
@@ -62,6 +64,7 @@ def _serialize_session(sid: str, state: SessionState) -> dict[str, Any]:
         "original_extracted": state.original_extracted,
         "extraction_errors": state.extraction_errors,
         "citations": state.citations,
+        "confidences": state.confidences,
     }
 
 
@@ -82,6 +85,74 @@ def _split_evidence(result: dict | None) -> tuple[dict | None, dict[str, str]]:
         return result, {}
     quotes = {k: v for k, v in evidence.items() if isinstance(v, str) and v.strip()}
     return result, quotes
+
+
+def _split_confidence(result: dict | None) -> tuple[dict | None, dict[str, float | None]]:
+    """Pop _confidence numbers off the model result. Tolerant of missing / malformed."""
+    if not isinstance(result, dict):
+        return result, {}
+    raw = result.pop(CONFIDENCE_KEY, None)
+    if not isinstance(raw, dict):
+        return result, {}
+    out: dict[str, float | None] = {}
+    for k, v in raw.items():
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            out[k] = float(v)
+        elif v is None:
+            out[k] = None
+    return result, out
+
+
+def _evidence_factor(field_name: str, quotes: dict[str, str], citations: dict[str, dict]) -> float:
+    """0.5 if no quote, 0.75 if quote but not locatable, 1.0 if citation present."""
+    if field_name in citations:
+        return 1.0
+    if field_name in quotes and quotes[field_name].strip():
+        return 0.75
+    return 0.5
+
+
+def _final_confidence(
+    value: Any,
+    self_report: float | None,
+    evidence_factor: float,
+) -> float:
+    """Combine model self-report with citation-located heuristic.
+
+    Empty value → 0.0. Missing self_report falls back to evidence_factor alone
+    (treat self_report as 1.0 so final = evidence_factor); this is non-obvious
+    because intuition says missing means low, but the heuristic already
+    encodes the "no evidence" case via 0.5.
+    """
+    if value is None:
+        return 0.0
+    if isinstance(value, str) and not value.strip():
+        return 0.0
+    if isinstance(value, list) and not value:
+        return 0.0
+    sr = 1.0 if self_report is None else float(self_report)
+    final = sr * evidence_factor
+    if final < 0.0:
+        final = 0.0
+    elif final > 1.0:
+        final = 1.0
+    return round(final, 2)
+
+
+def _compute_final_confidences(
+    schema: list[FieldDef],
+    values: dict[str, Any],
+    self_reports: dict[str, float],
+    quotes: dict[str, str],
+    citations: dict[str, dict],
+) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for f in schema:
+        v = values.get(f.name)
+        sr = self_reports.get(f.name)
+        ef = _evidence_factor(f.name, quotes, citations)
+        out[f.name] = _final_confidence(v, sr, ef)
+    return out
 
 
 @router.post("/upload")
@@ -129,21 +200,29 @@ async def upload(
     except asyncio.TimeoutError:
         per_page_results_raw = [None] * len(pages_to_extract)
 
-    # Split evidence quotes off each page result before merging.
+    # Split evidence quotes and confidence scores off each page result before merging.
     per_page_results: list[dict | None] = []
     per_page_quotes: list[dict[str, str]] = []
+    per_page_confidences: list[dict | None] = []
     for r in per_page_results_raw:
         v, q = _split_evidence(r)
+        v, c = _split_confidence(v)
         per_page_results.append(v)
         per_page_quotes.append(q)
+        per_page_confidences.append(c if c else None)
 
     extraction_errors = [pages_to_extract[i] + 1 for i, r in enumerate(per_page_results) if r is None]
-    values = merge_page_results(per_page_results, schema)
+    values, raw_self_confidences = merge_page_results(
+        per_page_results, schema, per_page_confidences
+    )
     original_extracted = {k: (list(v) if isinstance(v, list) else v) for k, v in values.items()}
 
     # Build citations page-by-page (fields not yet located fall through to next page).
     citations: dict[str, dict] = {}
+    merged_quotes: dict[str, str] = {}
     for page_idx, quotes in zip(pages_to_extract, per_page_quotes):
+        for fname, qtext in quotes.items():
+            merged_quotes.setdefault(fname, qtext)
         if not quotes:
             continue
         remaining = {k: v for k, v in quotes.items() if k not in citations}
@@ -155,6 +234,10 @@ async def upload(
         for fname, cit in new_cits.items():
             citations.setdefault(fname, cit)
 
+    confidences = _compute_final_confidences(
+        schema, values, raw_self_confidences, merged_quotes, citations
+    )
+
     state = SessionState(
         pdf_bytes=pdf_bytes,
         page_images=page_images,
@@ -164,6 +247,7 @@ async def upload(
         extraction_errors=extraction_errors,
         provider_name=provider,
         citations=citations,
+        confidences=confidences,
     )
     sid = store.create(state)
     return _serialize_session(sid, state)
@@ -270,6 +354,8 @@ async def extract_single_page(sid: str, req: ExtractPageRequest):
     if raw is None:
         raise HTTPException(502, f"extraction failed for page {req.page}")
     result, quotes = _split_evidence(raw)
+    result, self_reports = _split_confidence(result)
+    updated_fields: set[str] = set()
     # Re-merge: scalars only fill if currently empty; lists append-dedupe.
     async with state.lock:
         for f in state.schema:
@@ -277,22 +363,40 @@ async def extract_single_page(sid: str, req: ExtractPageRequest):
             if f.type == "string":
                 if isinstance(v, str) and v.strip() and not state.values.get(f.name):
                     state.values[f.name] = v
+                    updated_fields.add(f.name)
             else:
                 if isinstance(v, list):
                     current = state.values.setdefault(f.name, [])
                     seen = set(current)
+                    added = False
                     for item in v:
                         if isinstance(item, str) and item not in seen:
                             seen.add(item)
                             current.append(item)
+                            added = True
+                    if added:
+                        updated_fields.add(f.name)
         # Refresh citations for fields that produced new quotes on this page.
+        new_cits: dict[str, dict] = {}
         if quotes:
             new_cits = await asyncio.to_thread(
                 locate_quotes, state.pdf_bytes, quotes, preferred_page_index=page_idx
             )
             for fname, cit in new_cits.items():
                 state.citations[fname] = cit
-    return {"values": state.values, "citations": state.citations}
+        # Recompute confidence for fields whose value changed this page.
+        for fname in updated_fields:
+            f = next((sf for sf in state.schema if sf.name == fname), None)
+            if f is None:
+                continue
+            sr = self_reports.get(fname)
+            ef = _evidence_factor(fname, quotes, state.citations)
+            state.confidences[fname] = _final_confidence(state.values.get(fname), sr, ef)
+    return {
+        "values": state.values,
+        "citations": state.citations,
+        "confidences": state.confidences,
+    }
 
 
 @router.get("/sessions/{sid}/extract-page/stream")
@@ -327,6 +431,7 @@ async def extract_page_stream(sid: str, page: int, provider: str | None = None):
     async def event_gen():
         merged_quotes: dict[str, str] = {}
         merged_values: dict[str, Any] = {}
+        merged_confidences: dict[str, float | None] = {}
         try:
             async for ev in stream_extract(image, schema_snapshot, provider_name):
                 t = ev.get("type")
@@ -335,6 +440,7 @@ async def extract_page_stream(sid: str, page: int, provider: str | None = None):
                 elif t == "final":
                     merged_values = ev.get("values", {}) or {}
                     merged_quotes = ev.get("quotes", {}) or {}
+                    merged_confidences = ev.get("confidences", {}) or {}
                 elif t == "error":
                     yield fmt("error", {"message": ev.get("message", "error")})
                     return
@@ -348,23 +454,37 @@ async def extract_page_stream(sid: str, page: int, provider: str | None = None):
                     merged_quotes,
                     page_idx,
                 )
+            updated_fields: set[str] = set()
             async with state.lock:
                 for f in schema_snapshot:
                     v = merged_values.get(f.name)
                     if f.type == "string":
                         if isinstance(v, str) and v.strip() and not state.values.get(f.name):
                             state.values[f.name] = v
+                            updated_fields.add(f.name)
                     else:
                         if isinstance(v, list):
                             current = state.values.setdefault(f.name, [])
                             seen = set(current)
+                            added = False
                             for item in v:
                                 if isinstance(item, str) and item not in seen:
                                     seen.add(item)
                                     current.append(item)
+                                    added = True
+                            if added:
+                                updated_fields.add(f.name)
                 for fname, cit in new_cits.items():
                     state.citations[fname] = cit
+                new_confidences: dict[str, float] = {}
+                for fname in updated_fields:
+                    sr = merged_confidences.get(fname)
+                    ef = _evidence_factor(fname, merged_quotes, state.citations)
+                    score = _final_confidence(state.values.get(fname), sr, ef)
+                    state.confidences[fname] = score
+                    new_confidences[fname] = score
             yield fmt("citations", new_cits)
+            yield fmt("confidences", new_confidences)
             yield fmt("done", {})
         except Exception as e:  # noqa: BLE001
             yield fmt("error", {"message": str(e)})

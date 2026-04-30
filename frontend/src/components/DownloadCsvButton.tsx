@@ -7,7 +7,7 @@ export function DownloadCsvButton() {
 
   function handleClick() {
     if (!session) return;
-    const csv = toCsv(session.schema, session.values);
+    const csv = toCsv(session.schema, session.values, session.confidences);
     const sid = session.session_id.slice(0, 8);
     downloadCsv(`extraction-${sid}.csv`, csv);
   }

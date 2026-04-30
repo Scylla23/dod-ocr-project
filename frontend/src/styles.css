@@ -702,11 +702,41 @@ input, select, textarea { font-family: inherit; }
 }
 .field-actions {
   display: inline-flex;
+  align-items: center;
   gap: 10px;
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+}
+
+.conf-badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  padding: 1px 6px;
+  margin-right: 6px;
+  border-radius: var(--rad-sm);
+  border: 1px solid transparent;
+  cursor: default;
+}
+.conf-high {
+  background: rgba(46, 125, 50, 0.10);
+  color: #2e7d32;
+  border-color: rgba(46, 125, 50, 0.25);
+}
+.conf-med {
+  background: rgba(176, 122, 20, 0.10);
+  color: #8a5a08;
+  border-color: rgba(176, 122, 20, 0.25);
+}
+.conf-low {
+  background: rgba(196, 52, 26, 0.10);
+  color: #a8341a;
+  border-color: rgba(196, 52, 26, 0.25);
 }
 
 .link {

@@ -22,6 +22,7 @@ export interface SessionData {
   original_extracted: Record<string, FieldValue>;
   extraction_errors: number[];
   citations: Record<string, Citation>;
+  confidences: Record<string, number>;
 }
 
 export type PatchOp =

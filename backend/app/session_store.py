@@ -20,6 +20,8 @@ class SessionState:
     provider_name: str | None = None
     # field_name -> {"page": int (1-indexed), "rects": [[x,y,w,h] in [0,1]], "quote": str}
     citations: dict[str, dict] = field(default_factory=dict)
+    # field_name -> final 0..1 confidence (model self-report combined with citation heuristic)
+    confidences: dict[str, float] = field(default_factory=dict)
 
 
 class SessionStore:

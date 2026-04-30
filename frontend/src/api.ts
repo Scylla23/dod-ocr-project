@@ -70,6 +70,7 @@ export const api = {
 export interface StreamHandlers {
   onField?: (name: string, value: FieldValue) => void;
   onCitations?: (citations: Record<string, Citation>) => void;
+  onConfidences?: (cs: Record<string, number>) => void;
   onDone?: () => void;
   onError?: (message: string) => void;
 }
@@ -107,6 +108,12 @@ export function streamExtractPage(
     const ev = e as MessageEvent<string>;
     const data = safeJson<Record<string, Citation>>(ev.data);
     if (data) handlers.onCitations?.(data);
+  });
+
+  es.addEventListener("confidences", (e) => {
+    const ev = e as MessageEvent<string>;
+    const data = safeJson<Record<string, number>>(ev.data);
+    if (data) handlers.onConfidences?.(data);
   });
 
   es.addEventListener("done", () => {

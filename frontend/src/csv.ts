@@ -3,8 +3,9 @@ import type { FieldDef, FieldValue } from "./types";
 export function toCsv(
   schema: FieldDef[],
   values: Record<string, FieldValue>,
+  confidences?: Record<string, number>,
 ): string {
-  const rows: string[][] = [["field", "value"]];
+  const rows: string[][] = [["field", "value", "confidence"]];
   for (const f of schema) {
     const raw = values[f.name];
     let cell: string;
@@ -15,7 +16,9 @@ export function toCsv(
     } else {
       cell = String(raw);
     }
-    rows.push([f.name, cell]);
+    const conf = confidences?.[f.name];
+    const confCell = conf !== undefined && conf > 0 ? `${Math.round(conf * 100)}%` : "";
+    rows.push([f.name, cell, confCell]);
   }
   return rows.map((r) => r.map(quote).join(",")).join("\r\n");
 }

@@ -33,6 +33,28 @@ def test_build_tool_input_schema_marks_all_required_and_nullable():
     assert js["properties"]["refs"]["items"] == {"type": "string"}
 
 
+def test_build_tool_input_schema_with_confidence():
+    schema = [FieldDef(name="title", type="string", removable=False),
+              FieldDef(name="refs", type="list[string]", removable=True)]
+    js = build_tool_input_schema(schema, include_confidence=True)
+    assert "_confidence" in js["properties"]
+    assert "_confidence" in js["required"]
+    sub = js["properties"]["_confidence"]
+    assert sub["type"] == "object"
+    assert sub["required"] == ["title", "refs"]
+    assert sub["properties"]["title"]["type"] == ["number", "null"]
+    assert sub["properties"]["refs"]["type"] == ["number", "null"]
+
+
+def test_build_tool_input_schema_with_evidence_and_confidence():
+    schema = [FieldDef(name="title", type="string", removable=False)]
+    js = build_tool_input_schema(schema, include_evidence=True, include_confidence=True)
+    assert "_evidence" in js["properties"]
+    assert "_confidence" in js["properties"]
+    assert "_evidence" in js["required"]
+    assert "_confidence" in js["required"]
+
+
 @pytest.mark.parametrize("name", ["", "   ", "a" * 41, "bad name!", "tab\there"])
 def test_validate_field_name_rejects_invalid(name):
     with pytest.raises(ValueError):

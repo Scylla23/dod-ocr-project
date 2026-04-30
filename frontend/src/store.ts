@@ -23,6 +23,7 @@ interface AppState {
   setSchema: (schema: FieldDef[]) => void;
   applyMergedValues: (values: Record<string, FieldValue>) => void;
   applyCitations: (citations: Record<string, Citation>) => void;
+  applyConfidences: (cs: Record<string, number>) => void;
   setHighlightedField: (field: string | null) => void;
   markLive: (field: string) => void;
   clearLive: (field: string) => void;
@@ -152,6 +153,17 @@ export const useApp = create<AppState>((set, get) => ({
       session: {
         ...s,
         citations: { ...(s.citations ?? {}), ...citations },
+      },
+    });
+  },
+
+  applyConfidences: (cs) => {
+    const s = get().session;
+    if (!s) return;
+    set({
+      session: {
+        ...s,
+        confidences: { ...(s.confidences ?? {}), ...cs },
       },
     });
   },

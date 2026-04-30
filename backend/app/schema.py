@@ -71,13 +71,29 @@ EVIDENCE_PROMPT = (
     "that does not appear on the page. For list fields, quote one representative item."
 )
 
+CONFIDENCE_KEY = "_confidence"
 
-def build_tool_input_schema(schema: list[FieldDef], *, include_evidence: bool = False) -> dict:
+CONFIDENCE_PROMPT = (
+    " Also fill the '_confidence' object: for each field above, supply a number "
+    "in [0, 1] representing your self-rated confidence that the extracted value "
+    "is correct (1.0 = certain, 0 = pure guess or inferred). Use null when the "
+    "field is not applicable or was not extracted from this page."
+)
+
+
+def build_tool_input_schema(
+    schema: list[FieldDef],
+    *,
+    include_evidence: bool = False,
+    include_confidence: bool = False,
+) -> dict:
     """Build a JSON schema for Anthropic tool-use that mirrors the field schema.
 
     All fields are required and nullable so the model must produce a complete object.
     When include_evidence=True, an additional '_evidence' object is required, with
     one nullable string per field for verbatim source quotes.
+    When include_confidence=True, an additional '_confidence' object is required,
+    with one nullable number per field for self-rated confidence.
     """
     properties: dict[str, dict] = {}
     for f in schema:
@@ -92,6 +108,9 @@ def build_tool_input_schema(schema: list[FieldDef], *, include_evidence: bool = 
     if include_evidence:
         properties[EVIDENCE_KEY] = _build_evidence_subschema(schema, strict=False)
         required.append(EVIDENCE_KEY)
+    if include_confidence:
+        properties[CONFIDENCE_KEY] = _build_confidence_subschema(schema, strict=False)
+        required.append(CONFIDENCE_KEY)
     return {
         "type": "object",
         "properties": properties,
@@ -114,3 +133,20 @@ def _build_evidence_subschema(schema: list[FieldDef], *, strict: bool) -> dict:
 
 def build_evidence_subschema(schema: list[FieldDef], *, strict: bool = False) -> dict:
     return _build_evidence_subschema(schema, strict=strict)
+
+
+def _build_confidence_subschema(schema: list[FieldDef], *, strict: bool) -> dict:
+    """Sub-schema for per-field self-rated confidence. strict=True for OpenAI structured outputs."""
+    props: dict[str, dict] = {f.name: {"type": ["number", "null"]} for f in schema}
+    sub: dict = {
+        "type": "object",
+        "properties": props,
+        "required": [f.name for f in schema],
+    }
+    if strict:
+        sub["additionalProperties"] = False
+    return sub
+
+
+def build_confidence_subschema(schema: list[FieldDef], *, strict: bool = False) -> dict:
+    return _build_confidence_subschema(schema, strict=strict)

@@ -8,7 +8,7 @@ from typing import Any
 
 from anthropic import AsyncAnthropic
 
-from app.schema import EVIDENCE_PROMPT, FieldDef, build_tool_input_schema
+from app.schema import CONFIDENCE_PROMPT, EVIDENCE_PROMPT, FieldDef, build_tool_input_schema
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,9 @@ class AnthropicProvider:
                 "Use null for any field not visible on this page; "
                 "do not invent or infer values that are not present."
             ),
-            "input_schema": build_tool_input_schema(schema, include_evidence=True),
+            "input_schema": build_tool_input_schema(
+                schema, include_evidence=True, include_confidence=True
+            ),
         }
         try:
             response = await asyncio.wait_for(
@@ -62,6 +64,7 @@ class AnthropicProvider:
                                         "Extract the listed fields from this PDF page. "
                                         "Return null for any field not present on this page."
                                         + EVIDENCE_PROMPT
+                                        + CONFIDENCE_PROMPT
                                     ),
                                 },
                             ],

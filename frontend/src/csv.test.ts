@@ -12,18 +12,18 @@ describe("toCsv", () => {
   it("emits header plus one row per field", () => {
     const csv = toCsv(schema, { title: "Hello", references: ["A", "B"] });
     expect(csv).toBe(
-      '"field","value"\r\n' +
-      '"title","Hello"\r\n' +
-      '"references","A; B"',
+      '"field","value","confidence"\r\n' +
+      '"title","Hello",""\r\n' +
+      '"references","A; B",""',
     );
   });
 
   it("treats missing values as empty cells", () => {
     const csv = toCsv(schema, {});
     expect(csv).toBe(
-      '"field","value"\r\n' +
-      '"title",""\r\n' +
-      '"references",""',
+      '"field","value","confidence"\r\n' +
+      '"title","",""\r\n' +
+      '"references","",""',
     );
   });
 
@@ -33,8 +33,8 @@ describe("toCsv", () => {
       { quote: 'She said "hi"' },
     );
     expect(csv).toBe(
-      '"field","value"\r\n' +
-      '"quote","She said ""hi"""',
+      '"field","value","confidence"\r\n' +
+      '"quote","She said ""hi""",""',
     );
   });
 
@@ -44,8 +44,8 @@ describe("toCsv", () => {
       { note: "a, b\nc" },
     );
     expect(csv).toBe(
-      '"field","value"\r\n' +
-      '"note","a, b\nc"',
+      '"field","value","confidence"\r\n' +
+      '"note","a, b\nc",""',
     );
   });
 
@@ -55,8 +55,34 @@ describe("toCsv", () => {
       { tags: ["x", "y", "z"] },
     );
     expect(csv).toBe(
-      '"field","value"\r\n' +
-      '"tags","x; y; z"',
+      '"field","value","confidence"\r\n' +
+      '"tags","x; y; z",""',
+    );
+  });
+
+  it("emits confidence column as rounded percentage", () => {
+    const csv = toCsv(
+      schema,
+      { title: "Hello", references: ["A"] },
+      { title: 0.923, references: 0.7 },
+    );
+    expect(csv).toBe(
+      '"field","value","confidence"\r\n' +
+      '"title","Hello","92%"\r\n' +
+      '"references","A","70%"',
+    );
+  });
+
+  it("leaves confidence blank when missing or zero", () => {
+    const csv = toCsv(
+      schema,
+      { title: "Hello", references: ["A"] },
+      { title: 0, references: 0.88 },
+    );
+    expect(csv).toBe(
+      '"field","value","confidence"\r\n' +
+      '"title","Hello",""\r\n' +
+      '"references","A","88%"',
     );
   });
 });

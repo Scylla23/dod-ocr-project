@@ -16,7 +16,14 @@ from typing import Any, AsyncIterator
 from app.providers import get_provider
 from app.providers.anthropic_provider import AnthropicProvider
 from app.providers.openai_provider import OpenAIProvider
-from app.schema import EVIDENCE_KEY, EVIDENCE_PROMPT, FieldDef, build_tool_input_schema
+from app.schema import (
+    CONFIDENCE_KEY,
+    CONFIDENCE_PROMPT,
+    EVIDENCE_KEY,
+    EVIDENCE_PROMPT,
+    FieldDef,
+    build_tool_input_schema,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +127,7 @@ async def stream_extract(
     """Yield streaming events:
 
     - {"type":"field", "name": str, "value": str | list[str]}
-    - {"type":"final", "values": dict, "quotes": dict[str,str]}
+    - {"type":"final", "values": dict, "quotes": dict[str,str], "confidences": dict[str,float|None]}
     - {"type":"error", "message": str}
     """
     impl = get_provider(provider_name)
@@ -145,11 +152,25 @@ async def stream_extract(
         if isinstance(quotes_raw, dict)
         else {}
     )
+    confidences_raw = full.pop(CONFIDENCE_KEY, None)
+    confidences = _coerce_confidences(confidences_raw)
     schema_names = {f.name for f in schema}
     for k, v in full.items():
         if k in schema_names and v is not None:
             yield {"type": "field", "name": k, "value": v}
-    yield {"type": "final", "values": full, "quotes": quotes}
+    yield {"type": "final", "values": full, "quotes": quotes, "confidences": confidences}
+
+
+def _coerce_confidences(raw: Any) -> dict[str, float | None]:
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, float | None] = {}
+    for k, v in raw.items():
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            out[k] = float(v)
+        elif v is None:
+            out[k] = None
+    return out
 
 
 async def _stream_anthropic(
@@ -167,7 +188,9 @@ async def _stream_anthropic(
             "Use null for any field not visible on this page; "
             "do not invent or infer values that are not present."
         ),
-        "input_schema": build_tool_input_schema(schema, include_evidence=True),
+        "input_schema": build_tool_input_schema(
+            schema, include_evidence=True, include_confidence=True
+        ),
     }
 
     schema_names = {f.name for f in schema}
@@ -195,6 +218,7 @@ async def _stream_anthropic(
                                 "Extract the listed fields from this PDF page. "
                                 "Return null for any field not present on this page."
                                 + EVIDENCE_PROMPT
+                                + CONFIDENCE_PROMPT
                             ),
                         },
                     ],
@@ -258,6 +282,8 @@ async def _stream_anthropic(
         if isinstance(quotes_raw, dict)
         else {}
     )
+    confidences_raw = final_input.pop(CONFIDENCE_KEY, None)
+    confidences = _coerce_confidences(confidences_raw)
     # Emit any remaining fields that streamed too late to detect (or were last).
     for k, v in final_input.items():
         if k in emitted_fields or k not in schema_names:
@@ -270,7 +296,7 @@ async def _stream_anthropic(
             continue
         yield {"type": "field", "name": k, "value": v}
 
-    yield {"type": "final", "values": final_input, "quotes": quotes}
+    yield {"type": "final", "values": final_input, "quotes": quotes, "confidences": confidences}
 
 
 __all__ = ["stream_extract", "parse_partial_json"]

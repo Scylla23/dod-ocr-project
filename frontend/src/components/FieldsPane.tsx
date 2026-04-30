@@ -19,6 +19,7 @@ export function FieldsPane() {
   const revertField = useApp((s) => s.revertField);
   const deleteFieldStore = useApp((s) => s.deleteField);
   const applyCitations = useApp((s) => s.applyCitations);
+  const applyConfidences = useApp((s) => s.applyConfidences);
   const setHighlightedField = useApp((s) => s.setHighlightedField);
   const highlightedField = useApp((s) => s.highlightedField);
   const liveFields = useApp((s) => s.liveFields);
@@ -84,6 +85,7 @@ export function FieldsPane() {
         }
       },
       onCitations: (cits) => applyCitations(cits),
+      onConfidences: (cs) => applyConfidences(cs),
       onDone: () => setBusy(false),
       onError: (msg) => {
         alert(`Re-extract failed: ${msg}`);
@@ -127,6 +129,7 @@ export function FieldsPane() {
           value={session.values[f.name] ?? (f.type === "list[string]" ? [] : "")}
           original={session.original_extracted[f.name]}
           citation={session.citations?.[f.name]}
+          confidence={session.confidences?.[f.name]}
           live={liveFields.has(f.name)}
           highlighted={highlightedField === f.name}
           onScalarChange={handleScalarChange}
@@ -145,6 +148,7 @@ interface RowProps {
   value: FieldValue;
   original: FieldValue | undefined;
   citation?: Citation;
+  confidence?: number;
   live: boolean;
   highlighted: boolean;
   onScalarChange: (field: string, value: string) => Promise<void>;
@@ -159,6 +163,7 @@ function FieldRow({
   value,
   original,
   citation,
+  confidence,
   live,
   highlighted,
   onScalarChange,
@@ -169,6 +174,14 @@ function FieldRow({
 }: RowProps) {
   const dirty = !valuesEqual(value, original);
   const showRevert = original !== undefined && dirty;
+  const showConfidence = confidence !== undefined && confidence > 0;
+  const pct = showConfidence ? Math.round((confidence as number) * 100) : 0;
+  const confClass =
+    confidence !== undefined && confidence >= 0.85
+      ? "conf-high"
+      : confidence !== undefined && confidence >= 0.7
+        ? "conf-med"
+        : "conf-low";
   return (
     <div
       className="field-row"
@@ -179,6 +192,14 @@ function FieldRow({
       <div className="field-header">
         <label className="field-name">{field.name}</label>
         <span className="field-actions">
+          {showConfidence && (
+            <span
+              className={`conf-badge ${confClass}`}
+              title={`Confidence: ${pct}% (model self-report × evidence match)`}
+            >
+              {pct}%
+            </span>
+          )}
           {citation && (
             <button
               className="link source"

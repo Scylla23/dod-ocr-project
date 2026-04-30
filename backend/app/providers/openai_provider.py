@@ -10,9 +10,12 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from app.schema import (
+    CONFIDENCE_KEY,
+    CONFIDENCE_PROMPT,
     EVIDENCE_KEY,
     EVIDENCE_PROMPT,
     FieldDef,
+    build_confidence_subschema,
     build_evidence_subschema,
 )
 
@@ -23,7 +26,12 @@ _DEFAULT_BASE_URL = "https://api.openai.com/v1"
 _TIMEOUT_S = 60.0
 
 
-def _build_openai_schema(schema: list[FieldDef], *, include_evidence: bool = False) -> dict[str, Any]:
+def _build_openai_schema(
+    schema: list[FieldDef],
+    *,
+    include_evidence: bool = False,
+    include_confidence: bool = False,
+) -> dict[str, Any]:
     """Build an OpenAI strict-mode JSON schema mirroring the field schema."""
     properties: dict[str, dict] = {}
     for f in schema:
@@ -38,6 +46,9 @@ def _build_openai_schema(schema: list[FieldDef], *, include_evidence: bool = Fal
     if include_evidence:
         properties[EVIDENCE_KEY] = build_evidence_subschema(schema, strict=True)
         required.append(EVIDENCE_KEY)
+    if include_confidence:
+        properties[CONFIDENCE_KEY] = build_confidence_subschema(schema, strict=True)
+        required.append(CONFIDENCE_KEY)
     return {
         "type": "object",
         "properties": properties,
@@ -63,7 +74,7 @@ class OpenAIProvider:
     async def extract(self, image_png: bytes, schema: list[FieldDef]) -> dict | None:
         client = self._get_client()
         image_b64 = base64.standard_b64encode(image_png).decode("ascii")
-        json_schema = _build_openai_schema(schema, include_evidence=True)
+        json_schema = _build_openai_schema(schema, include_evidence=True, include_confidence=True)
         try:
             response = await asyncio.wait_for(
                 client.chat.completions.create(
@@ -92,6 +103,7 @@ class OpenAIProvider:
                                         "Return null for any field not present on this page; "
                                         "do not invent or infer values that are not present."
                                         + EVIDENCE_PROMPT
+                                        + CONFIDENCE_PROMPT
                                     ),
                                 },
                             ],
