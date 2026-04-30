@@ -1,1 +1,4 @@
 ubuntu ALL=(ALL) NOPASSWD: /bin/systemctl reload nginx
+ubuntu ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
+ubuntu ALL=(ALL) NOPASSWD: /usr/bin/install -m 644 -o root -g root /opt/dod-ocr/deploy/nginx.conf /etc/nginx/sites-available/dod-ocr
+ubuntu ALL=(ALL) NOPASSWD: /usr/bin/install -m 644 -o root -g root /tmp/dod-ocr-nginx.prev /etc/nginx/sites-available/dod-ocr

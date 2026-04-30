@@ -22,6 +22,23 @@ cd "$APP_DIR/frontend"
 npm ci
 npm run build
 
+echo "==> sync nginx config (if changed)"
+NGINX_SRC="$APP_DIR/deploy/nginx.conf"
+NGINX_DST="/etc/nginx/sites-available/dod-ocr"
+if ! cmp -s "$NGINX_SRC" "$NGINX_DST"; then
+  echo "nginx config changed — installing"
+  cp "$NGINX_DST" /tmp/dod-ocr-nginx.prev
+  sudo /usr/bin/install -m 644 -o root -g root "$NGINX_SRC" "$NGINX_DST"
+  if ! sudo /usr/sbin/nginx -t; then
+    echo "nginx config invalid — rolling back"
+    sudo /usr/bin/install -m 644 -o root -g root /tmp/dod-ocr-nginx.prev "$NGINX_DST"
+    sudo /usr/sbin/nginx -t
+    exit 1
+  fi
+else
+  echo "nginx config unchanged"
+fi
+
 echo "==> reload backend via pm2"
 # Start app from ecosystem if not already managed; otherwise reload it.
 if "$PM2" describe dod-ocr-backend >/dev/null 2>&1; then
