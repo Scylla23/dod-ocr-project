@@ -27,3 +27,5 @@ docs/superpowers/
 # Env
 .env
 .env.local
+
+ssh-key-129.213.110.222.pem
